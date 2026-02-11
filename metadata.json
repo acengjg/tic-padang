@@ -1,0 +1,7 @@
+{
+  "name": "TIC-PADANG",
+  "description": "A modern tourism assistant for West Sumatra, blending traditional Minangkabau aesthetics with clean, intuitive UI/UX for a seamless travel experience.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
