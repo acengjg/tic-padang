@@ -3,10 +3,440 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
     Users, MapPin, BarChart3, Settings,
-    LogOut, Shield, Search, Plus, Trash2, Edit, X, Save, Map as MapIcon, Calendar, CheckCircle, XCircle
+    LogOut, Shield, Search, Plus, Trash2, Edit, X, Save, Map as MapIcon, Calendar, CheckCircle, XCircle,
+    Eye, Crosshair, Type
 } from 'lucide-react';
 
 const API_BASE_URL = '/api';
+
+const getProxiedImageUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http')) {
+        return `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+};
+
+const ImagePreview: React.FC<{ url: string }> = ({ url }) => {
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setError(null);
+    }, [url]);
+
+    if (!url || !url.startsWith('http')) return null;
+
+    return (
+        <div className="mt-2 relative min-h-[160px] w-full rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 flex flex-col items-center justify-center p-4">
+            {!error ? (
+                <img
+                    src={getProxiedImageUrl(url)}
+                    alt="Preview"
+                    className="w-full h-full object-cover rounded-xl"
+                    onError={async () => {
+                        try {
+                            const res = await fetch(getProxiedImageUrl(url));
+                            if (res.status === 404) setError('Gambar indak ditamukan (404). Periso baliak URL-nyo.');
+                            else if (res.status === 500) {
+                                const text = await res.text();
+                                if (text.includes('did not return an image')) setError('Link ko bukan link gambar atau video nan valid.');
+                                else setError('Server gagal ma-ambil gambar. Cubo link lain.');
+                            }
+                            else setError('Gagal memuat preview. Pastikan URL benar atau gunakan link lain.');
+                        } catch (e) {
+                            setError('Koneksi bamasalah. Cubo cek internet dunsanak.');
+                        }
+                    }}
+                />
+            ) : (
+                <div className="text-center space-y-2">
+                    <p className="text-[11px] font-black text-chili-red uppercase tracking-widest">{error}</p>
+                    <p className="text-[9px] text-gray-400 font-medium px-4">Tips: Kalau dari IG/FB, pastikan postingan tu basifaik Publik.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const HotspotPicker: React.FC<{
+    imageUrl: string;
+    hotspots: any[];
+    onChange: (hotspots: any[]) => void
+}> = ({ imageUrl, hotspots, onChange }) => {
+    const viewerRef = React.useRef<HTMLDivElement>(null);
+    const viewerInstance = React.useRef<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [viewerReady, setViewerReady] = useState(false);
+
+    const initViewer = () => {
+        if (!viewerRef.current || !imageUrl) return;
+
+        // Wait for pannellum to be available in window
+        if (!(window as any).pannellum) {
+            console.error("Pannellum not found in window");
+            setError("Library Pannellum belum dimuat. Cek koneksi internet.");
+            return;
+        }
+
+        try {
+            if (viewerInstance.current) {
+                viewerInstance.current.destroy();
+            }
+
+            const panoramaUrl = getProxiedImageUrl(imageUrl);
+
+            console.log("Initializing Pannellum with URL:", panoramaUrl);
+
+            viewerInstance.current = (window as any).pannellum.viewer(viewerRef.current, {
+                type: 'equirectangular',
+                panorama: panoramaUrl,
+                autoLoad: true,
+                showControls: true,
+                hotSpots: hotspots.map((h, i) => ({
+                    ...h,
+                    createTooltipFunc: (el: HTMLElement) => {
+                        el.classList.add('custom-hotspot-label');
+                        el.innerHTML = `
+                            <div class="bg-black/90 backdrop-blur-md text-white p-3 rounded-2xl border border-white/20 shadow-2xl min-w-[150px] pointer-events-none">
+                                <p class="text-[10px] font-black text-padang-green uppercase tracking-widest mb-1">${h.text || 'Hotspot'}</p>
+                                ${h.description ? `<p class="text-[9px] text-white/70 leading-relaxed font-medium">${h.description}</p>` : ''}
+                            </div>
+                        `;
+                    }
+                })),
+                crossOrigin: imageUrl.startsWith('http') ? 'anonymous' : undefined,
+            });
+
+            viewerInstance.current.on('load', () => {
+                console.log("Pannellum Loaded Success");
+                setIsLoading(false);
+                setViewerReady(true);
+                setError(null);
+            });
+
+            viewerInstance.current.on('error', (err: any) => {
+                console.error("Pannellum Error Object:", err);
+                setError(typeof err === 'string' ? err : (err.message || "Gagal memuat gambar 360. Pastikan URL benar."));
+                setIsLoading(false);
+            });
+        } catch (e: any) {
+            console.error("Initialization Exception:", e);
+            setError(e.message);
+            setIsLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        setIsLoading(true);
+        setViewerReady(false);
+        setError(null);
+        // Larger timeout to ensure DOM and libraries are ready
+        const timer = setTimeout(initViewer, 1000);
+        return () => {
+            clearTimeout(timer);
+            if (viewerInstance.current) viewerInstance.current.destroy();
+        };
+    }, [imageUrl]);
+
+    const addHotspotAtCenter = () => {
+        if (!viewerInstance.current || !viewerReady) {
+            alert("Viewer belum siap. Silakan tunggu gambar muncul.");
+            return;
+        }
+
+        const pitch = viewerInstance.current.getPitch();
+        const yaw = viewerInstance.current.getYaw();
+
+        const newHotspot = {
+            pitch,
+            yaw,
+            type: 'info',
+            text: 'Hotspot Baru',
+            description: 'Tuliskan informasi detail di sini...'
+        };
+
+        const updated = [...hotspots, newHotspot];
+        onChange(updated);
+
+        // Add to live viewer
+        try {
+            viewerInstance.current.addHotSpot(newHotspot);
+        } catch (e) {
+            console.error("Error adding hotspot live:", e);
+            // Fallback: re-init
+            setTimeout(initViewer, 100);
+        }
+    };
+
+    const addHotspotOnClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!viewerInstance.current || !viewerReady) {
+            alert("Viewer belum siap. Silakan tunggu gambar muncul.");
+            return;
+        }
+
+        const rect = viewerRef.current!.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Convert screen coordinates to pitch and yaw
+        const coords = viewerInstance.current.hottospotLocation(x, y);
+        if (!coords) {
+            console.warn("Could not get hotspot location from click coordinates.");
+            return;
+        }
+
+        const newHotspot = {
+            pitch: coords.pitch,
+            yaw: coords.yaw,
+            type: 'info',
+            text: 'Hotspot Baru (Klik)',
+            description: 'Tuliskan informasi detail di sini...'
+        };
+
+        const updated = [...hotspots, newHotspot];
+        onChange(updated);
+
+        try {
+            viewerInstance.current.addHotSpot(newHotspot);
+        } catch (e) {
+            console.error("Error adding hotspot live from click:", e);
+            setTimeout(initViewer, 100);
+        }
+    };
+
+    const removeHotspot = (idx: number) => {
+        const updated = hotspots.filter((_, i) => i !== idx);
+        onChange(updated);
+        // Best to re-init to sync UI exactly
+        setTimeout(initViewer, 100);
+    };
+
+    const updateHotspot = (idx: number, data: any) => {
+        const updated = [...hotspots];
+        updated[idx] = { ...updated[idx], ...data };
+        onChange(updated);
+    };
+
+    return (
+        <div className="col-span-2 space-y-4">
+            <div className="flex justify-between items-end">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-2">
+                    <Crosshair size={12} className="text-chili-red" /> Virtual Tour Visual Editor
+                </label>
+                <button
+                    type="button"
+                    onClick={addHotspotAtCenter}
+                    className="bg-chili-red hover:bg-chili-red/90 text-white text-[10px] font-black px-4 py-2.5 rounded-xl shadow-lg shadow-chili-red/20 active:scale-95 transition-all flex items-center gap-2"
+                >
+                    <Plus size={14} /> Kunci Hotspot di Posisi Ini
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 relative group">
+                    <div
+                        ref={viewerRef}
+                        className="h-[650px] w-full rounded-[48px] border border-gray-100 overflow-hidden shadow-2xl bg-black relative"
+                        onClick={addHotspotOnClick}
+                    >
+                        {isLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 transition-all">
+                                <div className="h-12 w-12 border-4 border-padang-green border-t-transparent rounded-full animate-spin mb-6"></div>
+                                <p className="text-[10px] font-black text-white uppercase tracking-[4px]">Menghubungkan ke Panorama...</p>
+                            </div>
+                        )}
+                        {error && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-950/40 backdrop-blur-xl z-20 p-12 text-center transition-all">
+                                <div className="h-20 w-20 rounded-[32px] bg-chili-red/20 flex items-center justify-center text-chili-red mb-6 border border-chili-red/30">
+                                    <X size={40} />
+                                </div>
+                                <h4 className="text-white font-black text-sm uppercase tracking-widest mb-3">Gagal Memuat Viewer</h4>
+                                <p className="text-[10px] text-white/60 mb-8 max-w-[280px] leading-relaxed italic">"{error}"</p>
+                                <button
+                                    onClick={initViewer}
+                                    className="px-8 py-4 bg-white text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all shadow-xl active:scale-95"
+                                >
+                                    Coba Lagi
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-20 transition-opacity group-hover:opacity-40">
+                        <Crosshair size={48} className="text-white" />
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-[48px] p-8 overflow-y-auto max-h-[650px] border border-gray-100 shadow-sm flex flex-col gap-6">
+                    <div className="flex justify-between items-center px-1">
+                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Manajemen Hotspot</h5>
+                        <div className="bg-padang-green/10 text-padang-green px-2 py-0.5 rounded-full text-[9px] font-black">{hotspots.length} Spots</div>
+                    </div>
+
+                    {hotspots.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-gray-50 rounded-[32px] border border-dashed border-gray-200">
+                            <Type size={32} className="text-gray-200 mb-3" />
+                            <p className="text-[10px] text-gray-400 font-bold leading-relaxed px-4">Belum ada titik interaktif. Geser gambar dan tempelkan hotspot baru.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {hotspots.map((h, i) => (
+                                <div key={i} className="bg-gray-50 p-4 rounded-[24px] border border-gray-100 space-y-3 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-5 w-5 bg-padang-green text-white text-[9px] font-black flex items-center justify-center rounded-lg shadow-md shadow-padang-green/20">{i + 1}</span>
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter italic">P:{h.pitch.toFixed(1)} Y:{h.yaw.toFixed(1)}</span>
+                                        </div>
+                                        <button type="button" onClick={() => removeHotspot(i)} className="text-gray-300 hover:text-chili-red transition-colors p-1">
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <input
+                                            type="text"
+                                            value={h.text}
+                                            onChange={(e) => updateHotspot(i, { text: e.target.value })}
+                                            className="w-full text-sm font-bold text-gray-800 bg-white border border-gray-100 outline-none p-4 rounded-2xl focus:ring-2 focus:ring-padang-green/10 transition-all"
+                                            placeholder="Judul (muncul saat hover)"
+                                        />
+                                        <textarea
+                                            value={h.description || ''}
+                                            onChange={(e) => updateHotspot(i, { description: e.target.value })}
+                                            className="w-full text-xs font-medium text-gray-600 bg-white border border-gray-100 outline-none p-4 rounded-2xl focus:ring-2 focus:ring-padang-green/10 min-h-[150px] resize-y transition-all"
+                                            placeholder="Informasi detail yang akan muncul saat hotspot di-klik..."
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-start gap-3">
+                <Shield size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-700 leading-relaxed">
+                    <strong className="block mb-0.5">Tips Pengaturan:</strong>
+                    Arahkan <span className="font-black italic">Crosshair</span> (tanda + di tengah layar) ke objek wisata yang ingin diberi penjelasan, lalu klik tombol merah di atas untuk mengunci titik tersebut. Isi judul dan deskripsi agar muncul sebagai info saat user melakukan tur.
+                </p>
+            </div>
+        </div>
+    );
+};
+
+const SceneManager: React.FC<{
+    scenes: any[];
+    onChange: (scenes: any[]) => void
+}> = ({ scenes, onChange }) => {
+    const [activeSceneIdx, setActiveSceneIdx] = useState(0);
+
+    const addScene = () => {
+        const newScene = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: `Scene ${scenes.length + 1}`,
+            image360: '',
+            hotspots: []
+        };
+        onChange([...scenes, newScene]);
+        setActiveSceneIdx(scenes.length);
+    };
+
+    const removeScene = (idx: number) => {
+        const updated = scenes.filter((_, i) => i !== idx);
+        onChange(updated);
+        if (activeSceneIdx >= updated.length) {
+            setActiveSceneIdx(Math.max(0, updated.length - 1));
+        }
+    };
+
+    const updateActiveScene = (data: any) => {
+        const updated = [...scenes];
+        updated[activeSceneIdx] = { ...updated[activeSceneIdx], ...data };
+        onChange(updated);
+    };
+
+    const currentScene = scenes[activeSceneIdx];
+
+    return (
+        <div className="space-y-6">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                {scenes.map((s, i) => (
+                    <div key={s.id || i} className="relative group flex-shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setActiveSceneIdx(i)}
+                            className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${activeSceneIdx === i ? 'bg-padang-green text-white border-padang-green shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-padang-green/30'}`}
+                        >
+                            {s.name || 'Untitled'}
+                        </button>
+                        {scenes.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeScene(i);
+                                }}
+                                className="absolute -top-2 -right-2 bg-chili-red text-white h-5 w-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                            >
+                                <X size={10} />
+                            </button>
+                        )}
+                    </div>
+                ))}
+                <button
+                    type="button"
+                    onClick={addScene}
+                    className="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-dashed border-gray-200 text-gray-400 hover:border-padang-green hover:text-padang-green transition-all flex items-center gap-2"
+                >
+                    <Plus size={14} /> Tambah Scene
+                </button>
+            </div>
+
+            {currentScene ? (
+                <div className="space-y-6 bg-white/50 p-6 rounded-[32px] border border-gray-100 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Nama Scene (Navigasi POI)</label>
+                            <input
+                                type="text"
+                                value={currentScene.name || ''}
+                                onChange={(e) => updateActiveScene({ name: e.target.value })}
+                                className="w-full bg-white border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none"
+                                placeholder="Misal: Halaman Depan"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar 360 Scene Ini</label>
+                            <input
+                                type="text"
+                                value={currentScene.image360 || ''}
+                                onChange={(e) => updateActiveScene({ image360: e.target.value })}
+                                className="w-full bg-white border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none"
+                                placeholder="https://..."
+                            />
+                        </div>
+                    </div>
+
+                    {currentScene.image360 ? (
+                        <HotspotPicker
+                            imageUrl={currentScene.image360}
+                            hotspots={Array.isArray(currentScene.hotspots) ? currentScene.hotspots : []}
+                            onChange={(h) => updateActiveScene({ hotspots: h })}
+                        />
+                    ) : (
+                        <div className="p-10 border-2 border-dashed border-gray-100 rounded-[40px] text-center bg-white/30">
+                            <Eye size={32} className="text-gray-200 mx-auto mb-4" />
+                            <p className="text-xs text-gray-400 font-black uppercase tracking-widest">Isi URL Gambar 360 untuk scene ini</p>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="p-10 border-2 border-dashed border-gray-100 rounded-[40px] text-center bg-white/30">
+                    <p className="text-xs text-gray-400 font-black uppercase tracking-widest">Belum ada scene. Klik tombol "Tambah Scene" di atas.</p>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, lng: number) => void }> = ({ lat, lng, onChange }) => {
     const mapRef = React.useRef<HTMLDivElement>(null);
@@ -158,13 +588,36 @@ const AdminApp: React.FC = () => {
     const handleOpenModal = (item: any = null) => {
         if (item) {
             setEditingItem(item);
-            setFormData(item);
+            // Parse nested JSON if needed
+            const hotspots = item.hotspots ? (typeof item.hotspots === 'string' ? JSON.parse(item.hotspots) : item.hotspots) : [];
+            const scenes = item.scenes ? (typeof item.scenes === 'string' ? JSON.parse(item.scenes) : item.scenes) : [];
+
+            // Migration: If no scenes but has image360, create initial scene
+            let finalScenes = scenes;
+            if (scenes.length === 0 && item.image360) {
+                finalScenes = [{
+                    id: 'main',
+                    name: 'Titik Utama',
+                    image360: item.image360,
+                    hotspots: hotspots
+                }];
+            }
+
+            setFormData({
+                ...item,
+                hotspots,
+                scenes: finalScenes
+            });
         } else {
             setEditingItem(null);
             if (activeTab === 'users') {
                 setFormData({ name: '', email: '', password: '', role: 'USER', level: 1, points: 0 });
             } else if (activeTab === 'destinations') {
-                setFormData({ name: '', category: 'Alam', rating: 4.5, location: '', image: '', image360: '', description: '', price: 'Gratis', lat: -0.947, lng: 100.417 });
+                setFormData({
+                    name: '', category: 'Alam', rating: 4.5, location: '', image: '',
+                    image360: '', audioNarration: '', hotspots: [], scenes: [], isEnhanced: false,
+                    description: '', price: 'Gratis', lat: -0.947, lng: 100.417
+                });
             } else if (activeTab === 'events') {
                 setFormData({ name: '', date: new Date().toISOString(), location: '', image: '', description: '', price: '' });
             } else if (activeTab === 'articles') {
@@ -183,6 +636,13 @@ const AdminApp: React.FC = () => {
         const method = editingItem ? 'PUT' : 'POST';
         const url = editingItem ? `${API_BASE_URL}/admin/${activeTab}/${editingItem.id}` : `${API_BASE_URL}/admin/${activeTab}`;
 
+        // Prepare formData for submission, especially for hotspots
+        const dataToSubmit = { ...formData };
+        if (activeTab === 'destinations') {
+            if (dataToSubmit.hotspots) dataToSubmit.hotspots = JSON.stringify(dataToSubmit.hotspots);
+            if (dataToSubmit.scenes) dataToSubmit.scenes = JSON.stringify(dataToSubmit.scenes);
+        }
+
         try {
             const res = await fetch(url, {
                 method,
@@ -190,7 +650,7 @@ const AdminApp: React.FC = () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(dataToSubmit)
             });
             if (res.ok) {
                 setIsModalOpen(false);
@@ -378,7 +838,7 @@ const AdminApp: React.FC = () => {
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-4">
                                             <div className="h-12 w-12 rounded-2xl bg-gray-100 overflow-hidden border border-gray-50">
-                                                <img src={item.avatar || item.image || item.user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${item.name || item.title || item.user?.name}`} className="w-full h-full object-cover" />
+                                                <img src={getProxiedImageUrl(item.avatar || item.image || item.user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${item.name || item.title || item.user?.name}`)} className="w-full h-full object-cover" />
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-800">{item.name || item.title || item.user?.name}</p>
@@ -458,8 +918,8 @@ const AdminApp: React.FC = () => {
 
             {/* Full Screen Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-2xl rounded-[48px] shadow-2xl overflow-hidden flex flex-col h-[80vh] animate-in zoom-in-95">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-12 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white w-full max-w-6xl rounded-[48px] shadow-2xl overflow-hidden flex flex-col h-[95vh] animate-in zoom-in-95">
                         <div className="p-8 bg-padang-green text-white flex justify-between items-center">
                             <div>
                                 <h3 className="text-2xl font-bold">{editingItem ? 'Update Data' : 'Tambah Baru'}</h3>
@@ -473,7 +933,7 @@ const AdminApp: React.FC = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-12 lg:p-16 custom-scrollbar">
                             <div className="grid grid-cols-2 gap-8">
                                 {activeTab === 'users' && (
                                     <>
@@ -530,10 +990,41 @@ const AdminApp: React.FC = () => {
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Utama</label>
                                             <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image} />
                                         </div>
                                         <div className="col-span-2 space-y-2">
-                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar 360° (Opsional)</label>
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar 360° (Equirectangular)</label>
                                             <input type="text" value={formData.image360 || ''} onChange={(e) => setFormData({ ...formData, image360: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image360} />
+                                        </div>
+
+                                        <div className="col-span-2 bg-gradient-to-br from-padang-green/5 to-white p-6 rounded-[32px] border border-padang-green/10 space-y-6">
+                                            <div className="flex justify-between items-center">
+                                                <h4 className="text-[10px] font-black text-padang-green uppercase tracking-[3px]">Virtual Tour Enhanced</h4>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input type="checkbox" className="sr-only peer" checked={formData.isEnhanced || false} onChange={(e) => setFormData({ ...formData, isEnhanced: e.target.checked })} />
+                                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-padang-green"></div>
+                                                    <span className="ms-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Aktifkan Fitur Premium</span>
+                                                </label>
+                                            </div>
+
+                                            {formData.isEnhanced && (
+                                                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Narasi Audio (MP3/Link)</label>
+                                                        <input type="text" value={formData.audioNarration || ''} onChange={(e) => setFormData({ ...formData, audioNarration: e.target.value })} className="w-full bg-white border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Manajemen Multi-Scene (Peta Navigasi POI)</label>
+                                                        <p className="text-[10px] text-gray-400 font-bold ml-1 mb-4 italic">* Anda bisa menambahkan banyak lokasi (scene) dalam satu destinasi.</p>
+                                                        <SceneManager
+                                                            scenes={Array.isArray(formData.scenes) ? formData.scenes : []}
+                                                            onChange={(newScenes) => setFormData({ ...formData, scenes: newScenes })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Lengkap</label>
@@ -576,6 +1067,7 @@ const AdminApp: React.FC = () => {
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Thumbnail</label>
                                             <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image} />
                                         </div>
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Link Video YouTube (Embed Link/ID)</label>
@@ -606,6 +1098,7 @@ const AdminApp: React.FC = () => {
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar</label>
                                             <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image} />
                                         </div>
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Event</label>

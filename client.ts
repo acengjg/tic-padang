@@ -5,6 +5,23 @@ import { Destination, Promotion, Review, Event, Article } from './types';
 // URL backend (otomatis mengikuti IP server)
 export const API_BASE_URL = '/api';
 
+export const getProxiedImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http') && (
+    url.includes('instagram.com') ||
+    url.includes('googleusercontent.com') ||
+    url.includes('pannellum.org') ||
+    url.includes('facebook.com') ||
+    url.includes('fb.com') ||
+    url.includes('fbcdn.net') ||
+    url.includes('fb.watch') ||
+    url.includes('pariwisata.padang.go.id')
+  )) {
+    return `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+};
+
 const getStoredUserId = () => {
   const userData = localStorage.getItem('user_data');
   if (userData) {

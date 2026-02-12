@@ -251,9 +251,26 @@ app.get('/api/admin/destinations', authenticateToken, requireAdmin, async (req: 
 
 app.post('/api/admin/destinations', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { name, category, rating, location, image, image360, description, price, lat, lng } = req.body;
+    console.log('--- ADMIN POST DESTINATION ---');
+    console.log('Raw Body:', JSON.stringify(req.body, null, 2));
+    const { name, category, rating, location, image, image360, audioNarration, hotspots, scenes, isEnhanced, description, price, lat, lng } = req.body;
     const dest = await prisma.destination.create({
-      data: { name, category, rating: Number(rating), location, image, image360, description, price, lat: Number(lat), lng: Number(lng) }
+      data: {
+        name,
+        category,
+        rating: Number(rating),
+        location,
+        image,
+        image360,
+        audioNarration,
+        hotspots: hotspots ? (typeof hotspots === 'string' ? JSON.parse(hotspots) : hotspots) : undefined,
+        scenes: scenes ? (typeof scenes === 'string' ? JSON.parse(scenes) : scenes) : undefined,
+        isEnhanced: Boolean(isEnhanced),
+        description,
+        price,
+        lat: Number(lat),
+        lng: Number(lng)
+      }
     });
     res.status(201).json(dest);
   } catch (error) {
@@ -263,14 +280,32 @@ app.post('/api/admin/destinations', authenticateToken, requireAdmin, async (req:
 
 app.put('/api/admin/destinations/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { name, category, rating, location, image, image360, description, price, lat, lng } = req.body;
+    console.log('--- ADMIN PUT DESTINATION ---', req.params.id);
+    console.log('Raw Body:', JSON.stringify(req.body, null, 2));
+    const { name, category, rating, location, image, image360, audioNarration, hotspots, scenes, isEnhanced, description, price, lat, lng } = req.body;
     const dest = await prisma.destination.update({
       where: { id: req.params.id },
-      data: { name, category, rating: Number(rating), location, image, image360, description, price, lat: Number(lat), lng: Number(lng) }
+      data: {
+        name,
+        category,
+        rating: Number(rating),
+        location,
+        image,
+        image360,
+        audioNarration,
+        hotspots: hotspots ? (typeof hotspots === 'string' ? JSON.parse(hotspots) : hotspots) : undefined,
+        scenes: scenes ? (typeof scenes === 'string' ? JSON.parse(scenes) : scenes) : undefined,
+        isEnhanced: Boolean(isEnhanced),
+        description,
+        price,
+        lat: Number(lat),
+        lng: Number(lng)
+      }
     });
     res.json(dest);
-  } catch (error) {
-    res.status(500).json({ error: 'Gagal memperbarui destinasi' });
+  } catch (error: any) {
+    console.error('Admin Update Destination Error:', error);
+    res.status(500).json({ error: 'Gagal memperbarui destinasi: ' + error.message });
   }
 });
 
@@ -482,38 +517,203 @@ app.post('/api/reviews', authenticateToken, async (req: any, res: Response) => {
 
 // --- PROXY ROUTE ---
 
+const logProxy = (msg: string) => {
+  const logMsg = `[${new Date().toISOString()}] ${msg}\n`;
+  fs.appendFileSync(path.join(__dirname, 'proxy.log'), logMsg);
+  console.log(msg);
+};
+
 app.get('/api/proxy-image', async (req: any, res: Response) => {
   const imageUrl = req.query.url as string;
   if (!imageUrl) return res.status(400).send('URL is required');
 
   // Fix potential double slashes in URL path (except protocol)
   const fixedUrl = imageUrl.replace(/([^:]\/)\/+/g, "$1");
-
   try {
-    // Dynamic import to support fetch in environments where it might be tricky or use native if available
-    // Assuming Node 18+ for native fetch
-    const response = await fetch(fixedUrl);
 
-    if (!response.ok) {
-      // If fixed URL fails, try original just in case
-      const retryResponse = await fetch(imageUrl);
-      if (!retryResponse.ok) throw new Error(`Failed to fetch image`);
+    // For Instagram, we first try the media URL as it's the most direct
+    let fetchUrl = fixedUrl;
+    const isInstagram = fixedUrl.includes('instagram.com/p/') ||
+      fixedUrl.includes('instagram.com/reels/') ||
+      fixedUrl.includes('instagram.com/tv/');
 
-      const arrayBuffer = await retryResponse.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      res.setHeader('Content-Type', retryResponse.headers.get('content-type') || 'image/jpeg');
-      res.send(buffer);
-      return;
+    // Try multiple variations for Instagram media
+    if (isInstagram && !fixedUrl.includes('media/?size=l')) {
+      const baseUrl = fixedUrl.split('?')[0];
+      // Try with and without trailing slash for media endpoint
+      fetchUrl = baseUrl.endsWith('/') ? `${baseUrl}media/?size=l` : `${baseUrl}/media/?size=l`;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const isFacebook = fixedUrl.includes('facebook.com') ||
+      fixedUrl.includes('fb.watch') ||
+      fixedUrl.includes('fb.com') ||
+      fixedUrl.includes('fb.me');
 
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'image/jpeg');
-    res.send(buffer);
-  } catch (error) {
-    console.error('Proxy Error:', error);
-    res.status(500).send('Error fetching image');
+    // For Facebook, use mobile site for better scraping success
+    if (isFacebook && fixedUrl.includes('www.facebook.com')) {
+      fetchUrl = fixedUrl.replace('www.facebook.com', 'm.facebook.com');
+    } else if (isFacebook && !fixedUrl.includes('m.facebook.com') && !fixedUrl.includes('fbcdn.net')) {
+      // Handle cases like facebook.com/groups/...
+      try {
+        const urlObj = new URL(fetchUrl);
+        if (urlObj.hostname === 'facebook.com') {
+          urlObj.hostname = 'm.facebook.com';
+          fetchUrl = urlObj.toString();
+        }
+      } catch (e) { }
+    }
+
+    const isSocialMedia = isInstagram || isFacebook || fixedUrl.includes('fbcdn.net');
+
+    logProxy(`Fetching: ${fetchUrl} (Social: ${isSocialMedia})`);
+
+    const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+    const desktopUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+
+    const fetchOptions = {
+      headers: {
+        'User-Agent': isSocialMedia ? mobileUserAgent : desktopUserAgent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': isSocialMedia ? (isFacebook ? 'https://www.facebook.com/' : 'https://www.instagram.com/') : '',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+      },
+      redirect: 'follow' as RequestRedirect
+    };
+
+    let response = await fetch(fetchUrl, fetchOptions);
+    logProxy(`Response status: ${response.status} (${response.url})`);
+
+    // If it's a redirect to a login page, we failed
+    if (response.url.includes('facebook.com/login') || response.url.includes('instagram.com/accounts/login')) {
+      logProxy(`Blocked by login redirect`);
+      throw new Error('Blocked by social media login protection. Ensure the post is Public.');
+    }
+
+    // If media URL failed or returned HTML for Instagram, try the original post URL
+    if (isInstagram && fetchUrl.includes('/media/')) {
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok || contentType.includes('text/html')) {
+        logProxy(`Media URL blocked/failed. Retrying with original URL: ${fixedUrl}`);
+        response = await fetch(fixedUrl, fetchOptions);
+      }
+    }
+
+    if (!response.ok) {
+      // One last attempt for Instagram: many posts work by just appending /media/
+      if (isInstagram && !fetchUrl.endsWith('/media/')) {
+        const baseUrl = fixedUrl.split('?')[0];
+        const retryUrl = baseUrl.endsWith('/') ? `${baseUrl}media/` : `${baseUrl}/media/`;
+        logProxy(`Retrying Instagram with simple /media/: ${retryUrl}`);
+        response = await fetch(retryUrl, fetchOptions);
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch from ${response.url}: ${response.status} ${response.statusText}`);
+      }
+    }
+
+    let contentType = response.headers.get('content-type') || '';
+    logProxy(`Content-Type: ${contentType}`);
+
+    // If it's HTML, try to find image patterns (og:image, etc.)
+    if (contentType.includes('text/html')) {
+      let html = await response.text();
+
+      // Handle JS Redirects (common on Facebook mobile)
+      const jsRedirect = html.match(/window\.location\.replace\("([^"]+)"\)/i);
+      if (jsRedirect && jsRedirect[1]) {
+        let redirectUrl = jsRedirect[1].replace(/\\/g, '');
+        if (redirectUrl.startsWith('/')) {
+          const urlObj = new URL(fetchUrl);
+          redirectUrl = `${urlObj.protocol}//${urlObj.hostname}${redirectUrl}`;
+        }
+        logProxy(`Following JS redirect: ${redirectUrl}`);
+        const redirectRes = await fetch(redirectUrl, fetchOptions);
+        logProxy(`Redirect response status: ${redirectRes.status}`);
+
+        const redirectType = redirectRes.headers.get('content-type') || '';
+        if (redirectType.startsWith('image/')) {
+          const buffer = Buffer.from(await redirectRes.arrayBuffer());
+          res.setHeader('Content-Type', redirectType);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          logProxy(`Successfully served redirected direct image (${redirectType})`);
+          return res.send(buffer);
+        }
+
+        if (redirectType.includes('text/html')) {
+          html = await redirectRes.text();
+          logProxy(`Following JS redirect returned HTML, length: ${html.length}`);
+        }
+      }
+
+      // Look for multiple image patterns
+      // Some platforms use unusual quoting or spacing
+      const patterns = [
+        /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+        /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
+        /<meta[^>]+name=["']og:image["'][^>]+content=["']([^"']+)["']/i,
+        /<meta[^>]+property=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+        /["']display_url["']\s*:\s*["']([^"']+)["']/i,
+        /["']og:image["']\s*,\s*["']([^"']+)["']/i,
+        /image_src["']\s*content=["']([^"']+)["']/i,
+        // Fallback for Facebook raw images in scripts/JSON (prefer large ones)
+        /["'](https?:\/\/scontent\.[^"']+\/v\/t39\.30808-6\/[^"']+\.(?:jpg|png|webp)[^"']*)["']/i,
+        /["'](https?:\/\/scontent\.[^"']+\/v\/[^"']+\/[^"']+\.(?:jpg|png|webp)[^"']*)["']/i
+      ];
+
+      let extractedImageUrl = null;
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match && match[1]) {
+          extractedImageUrl = match[1];
+          logProxy(`Pattern matched: ${pattern.toString().substring(0, 50)}...`);
+          break;
+        }
+      }
+
+      if (extractedImageUrl) {
+        extractedImageUrl = extractedImageUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/&quot;/g, '"');
+        logProxy(`Extracted image URL: ${extractedImageUrl}`);
+
+        const imgRes = await fetch(extractedImageUrl, {
+          headers: {
+            'User-Agent': isSocialMedia ? mobileUserAgent : desktopUserAgent,
+            'Referer': isSocialMedia ? (isFacebook ? 'https://m.facebook.com/' : 'https://www.instagram.com/') : ''
+          }
+        });
+
+        if (imgRes.ok) {
+          const buffer = Buffer.from(await imgRes.arrayBuffer());
+          const finalMime = imgRes.headers.get('content-type') || 'image/jpeg';
+          res.setHeader('Content-Type', finalMime);
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          logProxy(`Successfully served extracted image (${finalMime})`);
+          return res.send(buffer);
+        } else {
+          logProxy(`Failed to fetch extracted image: ${imgRes.status} from ${extractedImageUrl}`);
+        }
+      } else {
+        logProxy(`No image pattern found in HTML. Sample HTML length: ${html.length}`);
+      }
+    }
+
+    // Default: send whatever we got if it's an image
+    if (contentType.startsWith('image/')) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      logProxy(`Serving direct image (${contentType})`);
+      return res.send(buffer);
+    }
+
+    throw new Error(`Source did not return an image. Type: ${contentType}`);
+  } catch (error: any) {
+    logProxy(`Proxy Error: ${error.message}`);
+    res.status(500).send('Error fetching image: ' + error.message);
   }
 });
 

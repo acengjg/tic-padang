@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppScreen, Destination } from '../types';
 import { CATEGORIES } from '../constants';
-import { apiService } from '../client';
+import { apiService, getProxiedImageUrl } from '../client';
 import { List, Star, MapPin, Search, RotateCcw, Tag as TagIcon, Map, Navigation, LocateFixed, ZoomIn, ZoomOut, Layers, RefreshCw, XCircle, View, ArrowRight, X, Clock, Zap } from 'lucide-react';
 
 const LeafletExploreMap: React.FC<{
@@ -134,7 +134,7 @@ const ImageWithPlaceholder: React.FC<{ src: string; alt: string; className: stri
         </div>
       )}
       <img
-        src={src}
+        src={getProxiedImageUrl(src)}
         alt={alt}
         onLoad={() => setIsLoaded(true)}
         className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-all duration-700`}

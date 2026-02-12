@@ -8,21 +8,25 @@ datasource db {
 }
 
 model Destination {
-  id          String   @id @default(cuid())
-  name        String
-  category    String
-  rating      Float
-  location    String
-  image       String
-  image360    String?
-  description String
-  price       String?
-  lat         Float
-  lng         Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  reviews     Review[]
-  buddyPosts  TravelBuddyPost[]
+  id              String   @id @default(cuid())
+  name            String
+  category        String
+  rating          Float
+  location        String
+  image           String
+  image360        String?
+  audioNarration  String?
+  hotspots        Json?
+  scenes          Json? // Stores multiple scenes/POIs
+  isEnhanced      Boolean  @default(false)
+  description     String
+  price           String?
+  lat             Float
+  lng             Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  reviews         Review[]
+  buddyPosts      TravelBuddyPost[]
 }
 
 model Promotion {

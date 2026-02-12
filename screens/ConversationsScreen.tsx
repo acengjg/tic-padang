@@ -97,7 +97,7 @@ const ConversationsScreen: React.FC<ConversationsScreenProps> = ({ onBack, onNav
                                         </div>
                                         {lastMessage && (
                                             <span className="text-[9px] font-bold text-gray-400">
-                                                {new Date(lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(lastMessage.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                             </span>
                                         )}
                                     </div>

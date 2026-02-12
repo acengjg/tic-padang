@@ -243,7 +243,7 @@ const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({ onBack }) => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-1">
-                                                    <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded-full">{item.time}</span>
+                                                    <span className="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded-full">{item.time} WIB</span>
                                                     <span className="text-xs font-bold text-padang-green">
                                                         {item.cost === 0 ? 'Gratis' : `Rp ${item.cost.toLocaleString()}`}
                                                     </span>

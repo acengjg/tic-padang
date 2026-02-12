@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppScreen, Destination, Promotion, Article, Event, Story } from '../types';
-import { apiService, API_BASE_URL } from '../client';
+import { apiService, API_BASE_URL, getProxiedImageUrl } from '../client';
 import StoryViewerScreen from './StoryViewerScreen';
 import CreateStoryScreen from './CreateStoryScreen';
 import {
@@ -31,7 +31,7 @@ const StoriesBar: React.FC<{ stories: Story[], onAddStory: () => void, onViewSto
         <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={onAddStory}>
           <div className="h-[68px] w-[68px] rounded-full border-2 border-gray-200 p-[2px] relative">
             <div className="h-full w-full rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-              <img src={profile?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=User"} className="w-full h-full object-cover opacity-50" alt="" />
+              <img src={getProxiedImageUrl(profile?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=User")} className="w-full h-full object-cover opacity-50" alt="" />
             </div>
             <div className="absolute bottom-0 right-0 bg-padang-green text-white rounded-full p-1 border-2 border-white">
               <Plus size={12} strokeWidth={4} />
@@ -45,7 +45,7 @@ const StoriesBar: React.FC<{ stories: Story[], onAddStory: () => void, onViewSto
           <div key={story.id} className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => onViewStory(index)}>
             <div className={`h-[72px] w-[72px] rounded-full p-[2px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500`}>
               <div className="h-full w-full rounded-full border-2 border-white overflow-hidden p-[2px] bg-white">
-                <img src={story.media[0]?.url.startsWith('http') ? story.media[0]?.url : `${API_BASE_URL.replace('/api', '')}${story.media[0]?.url}`} className="w-full h-full rounded-full object-cover" alt="" />
+                <img src={getProxiedImageUrl(story.media[0]?.url.startsWith('http') ? story.media[0]?.url : `${API_BASE_URL.replace('/api', '')}${story.media[0]?.url}`)} className="w-full h-full rounded-full object-cover" alt="" />
               </div>
             </div>
             <span className="text-[10px] text-gray-600 font-medium max-w-[64px] truncate">{story.user.name}</span>
@@ -62,7 +62,7 @@ const ImageWithPlaceholder: React.FC<{ src: string; alt: string; className: stri
     <div className="relative w-full h-full overflow-hidden bg-gray-100">
       {!isLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse" />}
       <img
-        src={src}
+        src={getProxiedImageUrl(src)}
         alt={alt}
         onLoad={() => setIsLoaded(true)}
         className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-700`}
@@ -177,7 +177,6 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
         <div className="flex justify-between items-center gap-3">
           {[
             { label: 'Wisata', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-100/50', screen: AppScreen.EXPLORE },
-            { label: 'Planner', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-100/50', screen: AppScreen.TRIP_PLANNER },
             { label: 'Guide', icon: UserCheck, color: 'text-rose-600', bg: 'bg-rose-100/50', screen: AppScreen.GUIDE_MARKETPLACE },
             { label: 'Buddy', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100/50', screen: AppScreen.TRAVEL_BUDDY },
             { label: 'Event', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100/50', screen: AppScreen.EVENTS },
@@ -257,7 +256,7 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
                   className="w-full bg-white rounded-[28px] shadow-md border border-gray-100 overflow-hidden group cursor-pointer relative"
                 >
                   <div className="h-44 relative">
-                    <img src={event.image} alt={event.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <img src={getProxiedImageUrl(event.image)} alt={event.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                     <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-lg">
                       Soon

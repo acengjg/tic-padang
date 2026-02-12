@@ -125,7 +125,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ conversationId, onBack }) => {
                                 }`}>
                                 {msg.content}
                                 <div className={`text-[9px] mt-1 ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
-                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(msg.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                 </div>
                             </div>
                         </div>

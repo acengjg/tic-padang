@@ -17,7 +17,11 @@ export interface Destination {
   rating: number;
   location: string;
   image: string;
-  image360?: string; // Properti baru untuk tur virtual
+  image360?: string;
+  audioNarration?: string;
+  hotspots?: any;
+  scenes?: any;
+  isEnhanced?: boolean;
   description: string;
   price?: string;
   coordinates: { lat: number; lng: number };

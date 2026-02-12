@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Destination } from '../types';
-import { API_BASE_URL } from '../client';
+import { API_BASE_URL, getProxiedImageUrl } from '../client';
 import {
   ChevronLeft, Star, MapPin, Navigation, Heart, Share2,
   Clock, Ticket, Info, MessageSquare, ExternalLink, X,
   CheckCircle2, Sparkles, MoveHorizontal,
-  Maximize2, View, Compass, Car, Bath, Coffee, Camera, Wifi, Utensils, RefreshCw
+  Maximize2, View, Compass, Car, Bath, Coffee, Camera, Wifi, Utensils, RefreshCw, PlayCircle
 } from 'lucide-react';
+import VirtualTourScreen from './VirtualTourScreen';
 
 interface DetailScreenProps {
   destination: Destination;
@@ -32,10 +33,8 @@ const PanoramicViewer: React.FC<{ imageUrl: string }> = ({ imageUrl }) => {
           viewerInstance.current.destroy();
         }
 
-        // Use proxy for external URLs to solve CORS and double slash issues
-        const panoramaUrl = imageUrl.startsWith('http')
-          ? `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(imageUrl)}`
-          : imageUrl;
+        // Use proxy helper for external URLs to solve CORS and special handling (like Instagram)
+        const panoramaUrl = getProxiedImageUrl(imageUrl);
 
         viewerInstance.current = (window as any).pannellum.viewer(viewerRef.current, {
           type: 'equirectangular',
@@ -151,6 +150,7 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showEnhancedTour, setShowEnhancedTour] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -249,7 +249,7 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
           }}
         >
           <img
-            src={destination.image}
+            src={getProxiedImageUrl(destination.image)}
             alt={destination.name}
             onLoad={() => setImageLoaded(true)}
             className={`w-full h-full object-cover object-center transition-all duration-1000 ${imageLoaded ? 'opacity-90 scale-100' : 'opacity-0 scale-110'}`}
@@ -404,10 +404,42 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
 
           {activeTab === '360' && destination.image360 && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <View className="h-4 w-4 text-padang-green" /> Eksplorasi Virtual 360°
-              </h3>
-              <PanoramicViewer imageUrl={destination.image360} />
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                  <View className="h-4 w-4 text-padang-green" /> Eksplorasi Virtual 360°
+                </h3>
+                <span className="bg-padang-green/10 text-padang-green text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest">Enhanced VR Ready</span>
+              </div>
+
+              <div className="relative group rounded-[32px] overflow-hidden border border-gray-100 shadow-xl mb-6">
+                <PanoramicViewer imageUrl={destination.image360} />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all flex flex-col items-center justify-center pointer-events-none">
+                  <button
+                    onClick={() => setShowEnhancedTour(true)}
+                    className="pointer-events-auto h-16 w-16 rounded-full bg-white/90 text-padang-green flex items-center justify-center shadow-2xl scale-110 hover:scale-125 active:scale-95 transition-all"
+                  >
+                    <PlayCircle className="h-8 w-8" />
+                  </button>
+                  <p className="text-white text-[10px] font-black uppercase tracking-[3px] mt-4 drop-shadow-lg">Buka Tur Virtual Enhanced</p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-padang-green/5 to-white p-6 rounded-[32px] border border-padang-green/10">
+                <h4 className="text-[10px] font-black text-padang-green uppercase tracking-widest mb-3">Fitur Premium Pro360</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Audio Narasi', desc: 'Dengarkan sejarah dunsanak' },
+                    { label: 'Hotspot Info', desc: 'Klik detail objek sekitar' },
+                    { label: 'VR Headset', desc: 'Gunakan Cardboard/VR' },
+                    { label: 'Live Guide', desc: 'Pemandu virtual interaktif' }
+                  ].map((f, i) => (
+                    <div key={i} className="bg-white/50 p-3 rounded-2xl border border-white">
+                      <p className="text-[9px] font-black text-gray-800">{f.label}</p>
+                      <p className="text-[8px] text-gray-400 font-medium">{f.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -494,6 +526,12 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
           <Navigation className="h-4 w-4" /> Navigasi Ke Sini
         </button>
       </div>
+      {showEnhancedTour && (
+        <VirtualTourScreen
+          destination={destination}
+          onClose={() => setShowEnhancedTour(false)}
+        />
+      )}
     </div>
   );
 };

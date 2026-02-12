@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tag, Gift, ExternalLink, Copy, Clock, RefreshCw } from 'lucide-react';
-import { apiService } from '../client';
+import { apiService, getProxiedImageUrl } from '../client';
 import { Promotion } from '../types';
 
 const PromoScreen: React.FC = () => {
@@ -50,7 +50,7 @@ const PromoScreen: React.FC = () => {
         {promotions.map((promo) => (
           <div key={promo.id} className="relative overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:row">
             <div className="h-44 w-full relative">
-              <img src={promo.image} alt={promo.title} className="w-full h-full object-cover" />
+              <img src={getProxiedImageUrl(promo.image)} alt={promo.title} className="w-full h-full object-cover" />
               <div className="absolute top-4 left-4 bg-chili-red text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg">
                 {promo.discount}
               </div>

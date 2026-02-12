@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Clock, ArrowLeft, Ticket, Share2, Heart, CalendarPlus, X } from 'lucide-react';
-import { apiService } from '../client';
+import { apiService, getProxiedImageUrl } from '../client';
 import { Event, AppScreen } from '../types';
 
 interface EventScreenProps {
@@ -25,7 +25,7 @@ const EventDetail: React.FC<{ event: Event; onBack: () => void }> = ({ event, on
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto animate-in slide-in-from-bottom duration-300">
             {/* Hero Section */}
             <div className="relative h-[45vh] w-full">
-                <img src={event.image} alt={event.name} className="w-full h-full object-cover" />
+                <img src={getProxiedImageUrl(event.image)} alt={event.name} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                 <button
@@ -163,7 +163,7 @@ const EventScreen: React.FC<EventScreenProps> = ({ onBack }) => {
                         <div key={event.id} onClick={() => setSelectedEvent(event)} className="bg-white rounded-[36px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group cursor-pointer border border-gray-100/50 active:scale-[0.98]">
                             <div className="relative h-60 bg-gray-200">
                                 <img
-                                    src={event.image}
+                                    src={getProxiedImageUrl(event.image)}
                                     className="w-full h-full object-cover group-hover:scale-110 group-hover:brightness-90 transition-all duration-1000"
                                     alt={event.name}
                                 />

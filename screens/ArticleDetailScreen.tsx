@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Article } from '../types';
-import { apiService } from '../client';
+import { apiService, getProxiedImageUrl } from '../client';
 import { ChevronLeft, Calendar, Share2, Clock, Bookmark } from 'lucide-react';
 
 interface ArticleDetailScreenProps {
@@ -50,7 +50,7 @@ const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ article, onBa
         <div className="flex flex-col bg-white min-h-screen">
             {/* Header Image */}
             <div className="relative h-[45vh] w-full shrink-0">
-                <img src={article.image} alt={article.title} className="w-full h-full object-cover" />
+                <img src={getProxiedImageUrl(article.image)} alt={article.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                 {/* Header Controls */}

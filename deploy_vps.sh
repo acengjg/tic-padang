@@ -7,39 +7,49 @@ PASS="Ubuntuserver!2025"
 export SSHPASS=$PASS
 
 echo "=========================================="
-echo "DEPLOYMENT: Syncing & Restarting"
+echo "DEPLOYMENT: Building Locally & Syncing"
 echo "=========================================="
 
-# 1. Copy Files (Adding this back!)
-echo "[1/3] Syncing files to server (with checksums)..."
-sshpass -e rsync -avzc --exclude 'node_modules' --exclude '.git' --exclude 'dist' --exclude 'uploads' --exclude '.env' --exclude '.env.local' ./ $USER@$HOST:~/tic-padang/
+# 1. Build locally
+echo "[1/4] Building Frontend locally..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo "Error: Local build failed."
+    exit 1
+fi
 
-# 2. Fix Env, Build & Migrate
-echo "[2/3] Configuring, Building & Migrating..."
+# 2. Sync files (INCLUDING dist)
+echo "[2/4] Syncing files to server (with dist folder)..."
+sshpass -e rsync -avzc --exclude 'node_modules' --exclude '.git' --exclude 'uploads' --exclude '.env' --exclude '.env.local' ./ $USER@$HOST:~/tic-padang/
+
+# 3. Server-side setup
+echo "[3/4] Configuring, Installing & Migrating on VPS..."
 sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST "
     cd ~/tic-padang
     
-    # Create valid .env for VPS
-    echo 'DATABASE_URL=\"postgresql://tic_user:tic_password@localhost:5432/tic_db?schema=public\"' > .env
-    echo 'PORT=3001' >> .env
-    echo 'JWT_SECRET=\"tik_padang_secret_key_123\"' >> .env
+    # Create valid .env for VPS if not exists
+    if [ ! -f .env ]; then
+        echo 'DATABASE_URL=postgresql://tic_user:tic_password@localhost:5432/tic_db?schema=public' > .env
+        echo 'PORT=3001' >> .env
+        echo 'JWT_SECRET=tik_padang_secret_key_123' >> .env
+    fi
 
-    # Install any new dependencies
+    # Install all dependencies (needed for tsx)
     npm install
     
-    # Build Frontend again just in case
-    npm run build
+    # Generate Prisma Client
+    npx prisma generate
     
     # Migrate DB
     npx prisma migrate deploy
 "
 
-# 3. Restart Application
-echo "[3/3] Restarting PM2..."
+# 4. Restart Application
+echo "[4/4] Restarting PM2..."
 sshpass -e ssh -o StrictHostKeyChecking=no $USER@$HOST "
-    pm2 restart tic-padang
+    pm2 restart tic-padang || pm2 start server.ts --name tic-padang --interpreter tsx
 "
 
 echo "=========================================="
-echo "Update Finished!"
+echo "Deployment Finished Successfully!"
 echo "=========================================="

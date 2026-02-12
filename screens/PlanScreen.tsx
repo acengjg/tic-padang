@@ -253,7 +253,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ onNavigate }) => {
                       <div className={`bg-white p-4 rounded-[20px] border transition-all duration-300 shadow-sm flex items-center gap-4 group ${isReminderSet ? 'border-padang-green/30 bg-green-50/20' : 'border-gray-100'}`}>
                         <div className="text-center min-w-[45px]">
                           <p className={`text-[10px] font-black transition-colors ${isReminderSet ? 'text-padang-green' : 'text-gray-400'}`}>
-                            {item.time}
+                            {item.time} WIB
                           </p>
                           <Clock className={`h-3 w-3 mx-auto mt-0.5 transition-colors ${isReminderSet ? 'text-padang-green' : 'text-gray-300'}`} />
                         </div>
