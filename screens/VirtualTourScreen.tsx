@@ -258,39 +258,18 @@ const VirtualTourScreen: React.FC<VirtualTourScreenProps> = ({ destination, onCl
                         >
                             <Smartphone size={20} />
                         </button>
+                        {/* Shrunk Play/Pause Button - Repositioned Below VR */}
+                        <button
+                            onClick={togglePlay}
+                            className={`h-12 w-12 rounded-2xl border flex items-center justify-center transition-all shadow-2xl active:scale-90 ${isPlaying ? 'bg-padang-green/50 text-white border-white/40' : 'bg-black/40 text-white border-white/20'}`}
+                        >
+                            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+                        </button>
                     </div>
                 </div>
 
                 {/* Guided Panel - Bottom */}
                 <div className="absolute bottom-8 left-6 right-6 flex flex-col gap-4 pointer-events-none">
-                    {/* Narasi Audio Indicator */}
-                    <div className="bg-padang-green/90 backdrop-blur-xl border border-white/20 rounded-3xl p-5 pointer-events-auto shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom duration-500">
-                        <button
-                            onClick={togglePlay}
-                            className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center text-padang-green shadow-lg active:scale-90 transition-all"
-                        >
-                            {isPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
-                        </button>
-                        <div className="flex-1">
-                            <div className="flex justify-between items-end mb-1">
-                                <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">Guided Narration</span>
-                                <span className="text-[10px] font-black text-white/50 tracking-tighter">
-                                    {Math.floor((audioProgress / 100 * duration) / 60)}:{String(Math.floor((audioProgress / 100 * duration) % 60)).padStart(2, '0')} /
-                                    {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
-                                </span>
-                            </div>
-                            <p className="text-white font-bold text-sm leading-snug line-clamp-1">{destination.audioNarration ? `Memutar narasi: ${destination.name}` : 'Menjelajahi keindahan alam Kota Padang...'}</p>
-                            <div className="h-1.5 w-full bg-white/20 rounded-full mt-2 overflow-hidden">
-                                <div
-                                    className="h-full bg-white rounded-full relative transition-all duration-300"
-                                    style={{ width: `${audioProgress}%` }}
-                                >
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 bg-white rounded-full shadow-lg border-2 border-padang-green"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Quick POI Navigation */}
                     <div className="flex gap-2 overflow-x-auto no-scrollbar pointer-events-auto pb-2">
                         {scenes.map((scene: any, idx: number) => (
