@@ -66,6 +66,11 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onNavigate, onBack }) =
             if (res.ok) {
                 setMessage({ type: 'success', text: t.settings.save_success || 'Profil berhasil diperbarui!' });
                 localStorage.setItem('user_data', JSON.stringify(data));
+
+                // Navigate to dashboard after short delay to show success message
+                setTimeout(() => {
+                    onNavigate(AppScreen.HOME);
+                }, 1000);
             } else {
                 setMessage({ type: 'error', text: data.error || 'Gagal memperbarui profil' });
             }

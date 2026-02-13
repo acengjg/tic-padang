@@ -91,7 +91,13 @@ const TravelBuddyScreen: React.FC<TravelBuddyScreenProps> = ({ onNavigate, onBac
                             className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-50 active:scale-[0.98] transition-all group"
                         >
                             <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-3">
+                                <div
+                                    className="flex items-center gap-3 cursor-pointer z-10"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onNavigate(AppScreen.PUBLIC_PROFILE, post.user.id);
+                                    }}
+                                >
                                     <img
                                         src={post.user?.avatar || `https://ui-avatars.com/api/?name=${post.user?.name}`}
                                         className="h-12 w-12 rounded-2xl object-cover border-2 border-padang-green/10"

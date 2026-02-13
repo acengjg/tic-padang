@@ -162,7 +162,17 @@ const GuideMarketplaceScreen: React.FC<GuideMarketplaceScreenProps> = ({ onNavig
                                         {pkg.category}
                                     </div>
                                     <div className="absolute bottom-4 left-4 right-4 bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div
+                                            className="flex items-center gap-2 mb-1 cursor-pointer"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                // Prioritize user.id which we now select, fallback to userId (FK)
+                                                const targetId = (pkg.guide?.user as any)?.id || (pkg.guide as any)?.userId;
+                                                if (targetId) {
+                                                    onNavigate(AppScreen.PUBLIC_PROFILE, targetId);
+                                                }
+                                            }}
+                                        >
                                             <img
                                                 src={pkg.guide?.user?.avatar || `https://ui-avatars.com/api/?name=${pkg.guide?.user?.name}`}
                                                 className="h-6 w-6 rounded-full border border-white"

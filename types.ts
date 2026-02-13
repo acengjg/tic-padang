@@ -71,7 +71,8 @@ export enum AppScreen {
   CREATE_BUDDY_POST = 'create_buddy_post',
   BUDDY_POST_DETAIL = 'buddy_post_detail',
   GUIDE_DASHBOARD = 'guide_dashboard',
-  CREATE_PACKAGE = 'create_package'
+  CREATE_PACKAGE = 'create_package',
+  PUBLIC_PROFILE = 'public_profile'
 }
 
 export interface TravelBuddyPost {

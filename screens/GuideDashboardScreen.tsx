@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Package, Settings, Star, TrendingUp, Users, Calendar, Clock, MapPin, Tag, List, Layout, Edit3, Trash2, XCircle, CheckCircle2, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Plus, Package, Settings, Star, TrendingUp, Users, Calendar, Clock, MapPin, Tag, List, Layout, Edit3, Trash2, XCircle, CheckCircle2, MessageCircle, AlertCircle } from 'lucide-react';
 import { apiService } from '../client';
 import { AppScreen } from '../types';
 
@@ -15,6 +15,7 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
     const [loading, setLoading] = useState(true);
     const [showRegForm, setShowRegForm] = useState(false);
     const [activeTab, setActiveTab] = useState<'packages' | 'bookings' | 'stats' | 'settings'>('bookings');
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     const [regData, setRegData] = useState({
         bio: '',
@@ -53,15 +54,23 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
 
     const handleRegister = async () => {
         try {
+            setMessage(null);
             const data = {
                 ...regData,
                 languages: regData.languages.split(',').map(l => l.trim()),
                 specializations: regData.specializations.split(',').map(s => s.trim())
             };
             await apiService.registerAsGuide(data);
-            loadDashboard();
+
+            setMessage({ type: 'success', text: 'Berhasil! Mengalihkan ke Beranda...' });
+
+            // Navigate to home after delay
+            setTimeout(() => {
+                onNavigate(AppScreen.HOME);
+            }, 1000);
+
         } catch (error) {
-            alert("Pendaftaran gagal");
+            setMessage({ type: 'error', text: "Pendaftaran/Update gagal. Coba lagi." });
         }
     };
 
@@ -141,6 +150,12 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
                         </div>
                     ) : (
                         <div className="space-y-6 text-left animate-in fade-in slide-in-from-bottom duration-300">
+                            {message && (
+                                <div className={`p-4 rounded-2xl mb-4 flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-padang-green border border-green-100' : 'bg-red-50 text-chili-red border border-red-100'}`}>
+                                    {message.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                                    <p className="text-xs font-bold">{message.text}</p>
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Bio Singkat</label>
                                 <textarea
@@ -408,6 +423,12 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
                 )}
                 {activeTab === 'settings' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-300">
+                        {message && (
+                            <div className={`p-4 rounded-2xl mb-4 flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-padang-green border border-green-100' : 'bg-red-50 text-chili-red border border-red-100'}`}>
+                                {message.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+                                <p className="text-xs font-bold">{message.text}</p>
+                            </div>
+                        )}
                         <section className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-50 space-y-6">
                             <div className="flex items-center gap-2">
                                 <div className="h-6 w-1 bg-padang-green rounded-full" />

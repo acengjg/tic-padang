@@ -100,6 +100,17 @@ export const apiService = {
     }
   },
 
+  getPublicProfile: async (userId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/public-profile/${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch public profile');
+      return await response.json();
+    } catch (error) {
+      console.error("Fetch Public Profile Error:", error);
+      throw error;
+    }
+  },
+
   getPlans: async (): Promise<any[]> => {
     const token = localStorage.getItem('user_token');
     if (!token) return [];

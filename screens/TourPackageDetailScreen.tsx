@@ -288,18 +288,28 @@ const TourPackageDetailScreen: React.FC<TourPackageDetailScreenProps> = ({ packa
                 {activeTab === 'guide' && (
                     <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-400">
                         <div className="bg-white p-8 rounded-[40px] shadow-sm border border-gray-100 text-center">
-                            <div className="relative inline-block mb-4">
-                                <img
-                                    src={pkg.guide?.user?.avatar || `https://ui-avatars.com/api/?name=${pkg.guide?.user?.name}`}
-                                    className="h-24 w-24 rounded-[32px] object-cover border-4 border-gray-50"
-                                    alt={pkg.guide?.user?.name}
-                                />
-                                <div className="absolute -bottom-2 -right-2 bg-padang-green text-white p-1.5 rounded-xl shadow-lg shadow-padang-green/30">
-                                    <ShieldCheck size={20} />
+                            <div
+                                className="cursor-pointer group"
+                                onClick={() => {
+                                    const targetId = (pkg.guide?.user as any)?.id || (pkg.guide as any)?.userId;
+                                    if (targetId) {
+                                        onNavigate(AppScreen.PUBLIC_PROFILE, targetId);
+                                    }
+                                }}
+                            >
+                                <div className="relative inline-block mb-4 transition-transform group-hover:scale-105">
+                                    <img
+                                        src={pkg.guide?.user?.avatar || `https://ui-avatars.com/api/?name=${pkg.guide?.user?.name}`}
+                                        className="h-24 w-24 rounded-[32px] object-cover border-4 border-gray-50 bg-gray-100"
+                                        alt={pkg.guide?.user?.name}
+                                    />
+                                    <div className="absolute -bottom-2 -right-2 bg-padang-green text-white p-1.5 rounded-xl shadow-lg shadow-padang-green/30">
+                                        <ShieldCheck size={20} />
+                                    </div>
                                 </div>
+                                <h3 className="text-xl font-black text-gray-800 mb-1 group-hover:text-padang-green transition-colors">{pkg.guide?.user?.name}</h3>
+                                <p className="text-xs font-bold text-padang-green uppercase tracking-widest mb-6">Pemandu Terverifikasi</p>
                             </div>
-                            <h3 className="text-xl font-black text-gray-800 mb-1">{pkg.guide?.user?.name}</h3>
-                            <p className="text-xs font-bold text-padang-green uppercase tracking-widest mb-6">Pemandu Terverifikasi</p>
 
                             <div className="flex justify-center gap-8 mb-8">
                                 <div className="text-center">

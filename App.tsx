@@ -27,6 +27,7 @@ import ConversationsScreen from './screens/ConversationsScreen';
 import BuddyPostDetailScreen from './screens/BuddyPostDetailScreen';
 import GuideDashboardScreen from './screens/GuideDashboardScreen';
 import CreatePackageScreen from './screens/CreatePackageScreen';
+import PublicProfileScreen from './screens/PublicProfileScreen';
 import BottomNav from './components/BottomNav';
 import SOSButton from './components/SOSButton';
 import TopBar from './components/TopBar';
@@ -39,6 +40,8 @@ const App: React.FC = () => {
   const [selectedPackageData, setSelectedPackageData] = useState<TourPackage | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedBuddyPostId, setSelectedBuddyPostId] = useState<string | null>(null);
+  const [selectedPublicUserId, setSelectedPublicUserId] = useState<string | null>(null);
+  const [publicProfileReturnScreen, setPublicProfileReturnScreen] = useState<AppScreen>(AppScreen.HOME);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<any>(null);
@@ -116,6 +119,9 @@ const App: React.FC = () => {
       setSelectedBuddyPostId(data);
     } else if (screen === AppScreen.CREATE_PACKAGE) {
       setSelectedPackageData(data); // data can be null for new package
+    } else if (screen === AppScreen.PUBLIC_PROFILE && data) {
+      setSelectedPublicUserId(data);
+      setPublicProfileReturnScreen(currentScreen);
     }
     setCurrentScreen(screen);
   };
@@ -165,6 +171,8 @@ const App: React.FC = () => {
             onBack={() => {
               if (previousScreen === AppScreen.PROFILE) {
                 handleNavigate(AppScreen.PROFILE, previousData);
+              } else if (previousScreen === AppScreen.PUBLIC_PROFILE) {
+                setCurrentScreen(AppScreen.PUBLIC_PROFILE);
               } else {
                 setCurrentScreen(AppScreen.GUIDE_MARKETPLACE);
               }
@@ -197,7 +205,13 @@ const App: React.FC = () => {
         return selectedBuddyPostId ? (
           <BuddyPostDetailScreen
             postId={selectedBuddyPostId}
-            onBack={() => setCurrentScreen(AppScreen.TRAVEL_BUDDY)}
+            onBack={() => {
+              if (previousScreen === AppScreen.PUBLIC_PROFILE) {
+                setCurrentScreen(AppScreen.PUBLIC_PROFILE);
+              } else {
+                setCurrentScreen(AppScreen.TRAVEL_BUDDY);
+              }
+            }}
             onNavigate={handleNavigate}
           />
         ) : <TravelBuddyScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
@@ -209,6 +223,14 @@ const App: React.FC = () => {
             editingPackage={selectedPackageData}
             onBack={() => { setSelectedPackageData(null); setCurrentScreen(AppScreen.GUIDE_DASHBOARD); }}
             onSuccess={() => { setSelectedPackageData(null); setCurrentScreen(AppScreen.GUIDE_DASHBOARD); }}
+          />
+        );
+      case AppScreen.PUBLIC_PROFILE:
+        return (
+          <PublicProfileScreen
+            userId={selectedPublicUserId}
+            onNavigate={handleNavigate}
+            onBack={() => setCurrentScreen(publicProfileReturnScreen)}
           />
         );
       case AppScreen.ARTICLE_DETAIL:
@@ -223,7 +245,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (currentScreen === AppScreen.SPLASH || currentScreen === AppScreen.LOGIN || currentScreen === AppScreen.REGISTER || currentScreen === AppScreen.CHAT || currentScreen === AppScreen.CONVERSATIONS || currentScreen === AppScreen.TOUR_PACKAGE_DETAIL || currentScreen === AppScreen.BOOKING || currentScreen === AppScreen.TRAVEL_BUDDY || currentScreen === AppScreen.CREATE_BUDDY_POST || currentScreen === AppScreen.BUDDY_POST_DETAIL || currentScreen === AppScreen.GUIDE_DASHBOARD || currentScreen === AppScreen.CREATE_PACKAGE) {
+  if (currentScreen === AppScreen.SPLASH || currentScreen === AppScreen.LOGIN || currentScreen === AppScreen.REGISTER || currentScreen === AppScreen.CHAT || currentScreen === AppScreen.CONVERSATIONS || currentScreen === AppScreen.TOUR_PACKAGE_DETAIL || currentScreen === AppScreen.BOOKING || currentScreen === AppScreen.TRAVEL_BUDDY || currentScreen === AppScreen.CREATE_BUDDY_POST || currentScreen === AppScreen.BUDDY_POST_DETAIL || currentScreen === AppScreen.GUIDE_DASHBOARD || currentScreen === AppScreen.CREATE_PACKAGE || currentScreen === AppScreen.PUBLIC_PROFILE) {
     return (
       <div className="relative min-h-screen max-w-md mx-auto bg-white shadow-2xl overflow-hidden flex flex-col">
         {renderScreen()}

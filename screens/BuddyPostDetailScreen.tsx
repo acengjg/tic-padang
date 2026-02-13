@@ -76,7 +76,14 @@ const BuddyPostDetailScreen: React.FC<BuddyPostDetailScreenProps> = ({ postId, o
 
             <main className="p-5 space-y-6">
                 {/* User Profile Card */}
-                <section className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 flex items-center justify-between">
+                <section
+                    className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform"
+                    onClick={() => {
+                        if (post.user?.id) {
+                            onNavigate(AppScreen.PUBLIC_PROFILE, post.user.id);
+                        }
+                    }}
+                >
                     <div className="flex items-center gap-4">
                         <div className="relative">
                             <img
@@ -168,7 +175,14 @@ const BuddyPostDetailScreen: React.FC<BuddyPostDetailScreenProps> = ({ postId, o
                         {post.applications?.map(app => (
                             <div key={app.id} className="bg-white p-5 rounded-[32px] shadow-sm border border-gray-100 animate-in slide-in-from-bottom-2 duration-300">
                                 <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-3">
+                                    <div
+                                        className="flex items-center gap-3 cursor-pointer"
+                                        onClick={() => {
+                                            if (app.user?.id) {
+                                                onNavigate(AppScreen.PUBLIC_PROFILE, app.user.id);
+                                            }
+                                        }}
+                                    >
                                         <img
                                             src={app.user?.avatar || `https://ui-avatars.com/api/?name=${app.user?.name}`}
                                             className="h-10 w-10 rounded-xl object-cover"
@@ -180,7 +194,7 @@ const BuddyPostDetailScreen: React.FC<BuddyPostDetailScreenProps> = ({ postId, o
                                         </div>
                                     </div>
                                     <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${app.status === 'ACCEPTED' ? 'bg-green-50 text-green-600' :
-                                            app.status === 'REJECTED' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-400'
+                                        app.status === 'REJECTED' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-400'
                                         }`}>
                                         {app.status}
                                     </span>
