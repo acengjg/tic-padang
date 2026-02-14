@@ -6,7 +6,7 @@ import CreateStoryScreen from './CreateStoryScreen';
 import {
   Star, MapPin, ArrowRight, Sun, Cloud, CloudRain,
   CloudLightning, Wind, Droplets, Clock,
-  Sparkles, Award, Bell, Thermometer, Info, Calendar, Plus, UserCheck, Users, Bookmark
+  Sparkles, Award, Bell, Thermometer, Info, Calendar, Plus, UserCheck, Users, Bookmark, Utensils
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -174,17 +174,18 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
 
       {/* Quick Access Menu */}
       <div className="px-5 mb-8">
-        <div className="flex justify-between items-center gap-3">
+        <div className="flex gap-4 overflow-x-auto pb-2 px-1 no-scrollbar snap-x">
           {[
             { label: 'Wisata', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-100/50', screen: AppScreen.EXPLORE },
+            { label: 'Kuliner', icon: Utensils, color: 'text-orange-600', bg: 'bg-orange-100/50', screen: AppScreen.CULINARY_SPOTS },
+            { label: 'Event', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100/50', screen: AppScreen.EVENTS },
             { label: 'Guide', icon: UserCheck, color: 'text-rose-600', bg: 'bg-rose-100/50', screen: AppScreen.GUIDE_MARKETPLACE },
             { label: 'Buddy', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100/50', screen: AppScreen.TRAVEL_BUDDY },
-            { label: 'Event', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100/50', screen: AppScreen.EVENTS },
           ].map((item, idx) => (
             <button
               key={idx}
               onClick={() => onNavigate(item.screen)}
-              className="flex flex-col items-center gap-2.5 min-w-[64px] group"
+              className="flex flex-col items-center gap-2.5 min-w-[64px] group snap-start"
             >
               <div className={`h-16 w-16 rounded-[24px] ${item.bg} flex items-center justify-center shadow-sm group-active:scale-90 transition-all duration-300 border border-white`}>
                 <item.icon className={`h-7 w-7 ${item.color}`} />

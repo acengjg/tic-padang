@@ -132,6 +132,7 @@ model User {
   // Travel Buddy Relations
   buddyPosts      TravelBuddyPost[]
   buddyApplications TravelBuddyApplication[]
+  culinaryReviews CulinaryReview[]
 }
 
 model Guide {
@@ -441,4 +442,44 @@ model TravelBuddyApplication {
   user            User           @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId])
+}
+
+model CulinarySpot {
+  id          String   @id @default(cuid())
+  name        String
+  category    String   // Cafe, Restaurant, Warung, etc.
+  description String
+  priceRange  String   // $, 4893, 4893$, 48934893
+  address     String
+  lat         Float
+  lng         Float
+  image       String
+  images      String[] // Gallery
+  facilities  String[] // WiFi, Parking, AC, etc.
+  openingHours Json?   // { "Monday": "08:00-22:00", ... }
+  menuHighlights Json? // [{name: "Rendang", price: 25000, image: "url"}, ...]
+  contact     String?
+  rating      Float    @default(0)
+  totalReviews Int     @default(0)
+  isHalal     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reviews     CulinaryReview[]
+}
+
+model CulinaryReview {
+  id          String   @id @default(cuid())
+  spotId      String
+  userId      String
+  rating      Float
+  tasteRating Float?
+  serviceRating Float?
+  ambienceRating Float?
+  comment     String
+  photos      String[]
+  createdAt   DateTime @default(now())
+
+  spot        CulinarySpot @relation(fields: [spotId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
 }

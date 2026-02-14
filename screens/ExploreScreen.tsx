@@ -1,18 +1,33 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppScreen, Destination } from '../types';
 import { CATEGORIES } from '../constants';
 import { apiService, getProxiedImageUrl } from '../client';
-import { List, Star, MapPin, Search, RotateCcw, Tag as TagIcon, Map, Navigation, LocateFixed, ZoomIn, ZoomOut, Layers, RefreshCw, XCircle, View, ArrowRight, X, Clock, Zap } from 'lucide-react';
+import { List, Star, MapPin, Search, RotateCcw, Tag as TagIcon, Map, Navigation, LocateFixed, ZoomIn, ZoomOut, RefreshCw, XCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 
-const LeafletExploreMap: React.FC<{
+interface ExploreMapHandle {
+  flyTo: (lat: number, lng: number, zoom?: number) => void;
+}
+
+// Map Component for Explore
+const LeafletExploreMap = React.forwardRef<ExploreMapHandle, {
   destinations: Destination[];
   onMarkerClick: (d: Destination) => void;
   userLocation: { lat: number; lng: number } | null;
-}> = ({ destinations, onMarkerClick, userLocation }) => {
+}>(({ destinations, onMarkerClick, userLocation }, ref) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+
+  React.useImperativeHandle(ref, () => ({
+    flyTo: (lat: number, lng: number, zoom: number = 16) => {
+      if (leafletRef.current) {
+        leafletRef.current.flyTo([lat, lng], zoom, {
+          animate: true,
+          duration: 1.5
+        });
+      }
+    }
+  }));
 
   useEffect(() => {
     const checkForLeaflet = setInterval(() => {
@@ -32,7 +47,7 @@ const LeafletExploreMap: React.FC<{
 
         const map = L.map(mapRef.current, {
           zoomControl: false
-        }).setView([-0.947, 100.354], 12); // Center Padang area
+        }).setView([-0.947, 100.354], 12);
         leafletRef.current = map;
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -41,7 +56,6 @@ const LeafletExploreMap: React.FC<{
         }).addTo(map);
 
         setTimeout(() => map.invalidateSize(), 300);
-        setTimeout(() => map.invalidateSize(), 1000); // Second pass to ensure correct rendering
       }
     }, 100);
 
@@ -54,6 +68,16 @@ const LeafletExploreMap: React.FC<{
     };
   }, []);
 
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'Alam': return '#10b981'; // Green
+      case 'Budaya': return '#f59e0b'; // Amber
+      case 'Belanja': return '#8b5cf6'; // Violet
+      case 'Religi': return '#3b82f6'; // Blue
+      default: return '#10b981'; // Default
+    }
+  };
+
   useEffect(() => {
     if (leafletRef.current) {
       const L = (window as any).L;
@@ -62,15 +86,28 @@ const LeafletExploreMap: React.FC<{
       markersRef.current = [];
 
       destinations.forEach(d => {
-        const marker = L.marker([d.coordinates.lat, d.coordinates.lng])
+        const color = getCategoryColor(d.category);
+
+        const marker = L.circleMarker([d.coordinates.lat, d.coordinates.lng], {
+          radius: 10,
+          fillColor: color,
+          color: '#fff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8
+        })
           .addTo(leafletRef.current)
           .on('click', () => onMarkerClick(d));
 
-        // Add name label as tooltip that is always visible on zoom 
-        marker.bindTooltip(d.name, {
+        marker.bindTooltip(`
+          <div class="flex flex-col gap-0.5">
+            <span class="font-black text-gray-800">${d.name}</span>
+            <span class="text-[9px] font-bold uppercase tracking-widest" style="color: ${color}">${d.category}</span>
+          </div>
+        `, {
           permanent: false,
           direction: 'top',
-          className: 'font-bold text-[10px] rounded-lg border-none shadow-md px-2 py-1'
+          className: 'rounded-xl border-none shadow-xl px-3 py-2 bg-white/90 backdrop-blur-sm'
         });
 
         markersRef.current.push(marker);
@@ -83,12 +120,11 @@ const LeafletExploreMap: React.FC<{
           color: "#fff",
           weight: 2,
           opacity: 1,
-          fillOpacity: 0.8
+          fillOpacity: 1
         }).addTo(leafletRef.current).bindPopup("Lokasi Anda");
         markersRef.current.push(userMarker);
       }
 
-      // Fit bounds if destinations exist
       if (destinations.length > 0) {
         const group = L.featureGroup(markersRef.current.filter(m => m.getLatLng));
         if (group.getBounds().isValid()) {
@@ -117,7 +153,7 @@ const LeafletExploreMap: React.FC<{
       </div>
     </div>
   );
-}
+});
 
 // Custom Image component with Placeholder
 const ImageWithPlaceholder: React.FC<{ src: string; alt: string; className: string }> = ({ src, alt, className }) => {
@@ -143,29 +179,22 @@ const ImageWithPlaceholder: React.FC<{ src: string; alt: string; className: stri
   );
 };
 
-interface Cluster {
-  id: string;
-  centroid: { top: number; left: number };
-  items: Destination[];
-}
-
 interface ExploreScreenProps {
-  onNavigate: (screen: AppScreen, data?: Destination) => void;
+  onNavigate: (screen: AppScreen, data?: any) => void;
   searchQuery?: string;
+  onSearch?: (q: string) => void;
 }
 
-const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery = '' }) => {
+const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery = '', onSearch }) => {
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<typeof CATEGORIES[number]>('Semua');
   const [isMapView, setIsMapView] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
-  const [bouncingId, setBouncingId] = useState<string | null>(null);
+  const exploreMapRef = useRef<ExploreMapHandle>(null);
+  const [activeFeaturedId, setActiveFeaturedId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isSortingByDistance, setIsSortingByDistance] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [selectedRoute, setSelectedRoute] = useState<Destination | null>(null);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -241,17 +270,6 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  const getVisualPos = (lat: number, lng: number) => {
-    const minLat = -1.1;
-    const maxLat = -0.2;
-    const minLng = 100.2;
-    const maxLng = 100.8;
-    return {
-      top: 100 - ((lat - minLat) / (maxLat - minLat)) * 80 - 10,
-      left: ((lng - minLng) / (maxLng - minLng)) * 80 + 10
-    };
-  };
-
   const requestLocation = () => {
     return new Promise<{ lat: number, lng: number }>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
@@ -261,7 +279,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
           resolve(loc);
         },
         (err) => {
-          setLocationError("Izin lokasi diperlukan untuk fitur ini.");
+          setLocationError("Izin lokasi diperlukan.");
           setTimeout(() => setLocationError(null), 3000);
           reject(err);
         }
@@ -280,27 +298,12 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
     } else setIsSortingByDistance(false);
   };
 
-  const handleGetDirections = async (dest: Destination) => {
-    let loc = userLocation;
-    if (!loc) {
-      try {
-        loc = await requestLocation();
-      } catch (e) { return; }
-    }
-
-    setIsMapView(true);
-    setSelectedRoute(dest);
-
-    // Zoom to show both points
-    const userPos = getVisualPos(loc.lat, loc.lng);
-    const destPos = getVisualPos(dest.coordinates.lat, dest.coordinates.lng);
-    const midX = (userPos.left + destPos.left) / 2;
-    const midY = (userPos.top + destPos.top) / 2;
-
-    setZoomOrigin({ x: midX, y: midY });
-    setZoomLevel(1.5);
-
-    if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
+  const handleResetFilter = () => {
+    setActiveTab('Semua');
+    if (onSearch) onSearch('');
+    setIsSortingByDistance(false);
+    setPullDistance(0);
+    if (window.navigator.vibrate) window.navigator.vibrate(50);
   };
 
   const filteredAndSorted = useMemo(() => {
@@ -324,59 +327,6 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
     return result;
   }, [destinations, activeTab, isSortingByDistance, userLocation, searchQuery]);
 
-  const clusters = useMemo(() => {
-    if (zoomLevel > 1.2 || selectedRoute) return [];
-    const clusters: Cluster[] = [];
-    const threshold = 15;
-    filteredAndSorted.forEach(dest => {
-      const pos = getVisualPos(dest.coordinates.lat, dest.coordinates.lng);
-      let found = false;
-      for (const cluster of clusters) {
-        const dist = Math.sqrt(Math.pow(cluster.centroid.top - pos.top, 2) + Math.pow(cluster.centroid.left - pos.left, 2));
-        if (dist < threshold) {
-          cluster.items.push(dest);
-          cluster.centroid.top = cluster.items.reduce((sum, item) => sum + getVisualPos(item.coordinates.lat, item.coordinates.lng).top, 0) / cluster.items.length;
-          cluster.centroid.left = cluster.items.reduce((sum, item) => sum + getVisualPos(item.coordinates.lat, item.coordinates.lng).left, 0) / cluster.items.length;
-          found = true;
-          break;
-        }
-      }
-      if (!found) clusters.push({ id: `cluster-${dest.id}`, centroid: pos, items: [dest] });
-    });
-    return clusters;
-  }, [filteredAndSorted, zoomLevel, selectedRoute]);
-
-  const handleResetFilter = () => {
-    setActiveTab('Semua');
-    setIsSortingByDistance(false);
-    setSelectedRoute(null);
-    setPullDistance(0);
-    setZoomLevel(1);
-    setZoomOrigin({ x: 50, y: 50 });
-    if (window.navigator.vibrate) window.navigator.vibrate(50);
-  };
-
-  const handleShowOnMap = (e: React.MouseEvent, dest: Destination) => {
-    e.stopPropagation();
-    setIsMapView(true);
-    const pos = getVisualPos(dest.coordinates.lat, dest.coordinates.lng);
-    setZoomOrigin({ x: pos.left, y: pos.top });
-    setZoomLevel(2);
-    setBouncingId(dest.id);
-    setTimeout(() => setBouncingId(null), 3000);
-    if (window.navigator.vibrate) window.navigator.vibrate([50, 40, 50]);
-  };
-
-  const handleClusterClick = (cluster: Cluster) => {
-    if (cluster.items.length > 1) {
-      setZoomOrigin({ x: cluster.centroid.left, y: cluster.centroid.top });
-      setZoomLevel(2);
-      if (window.navigator.vibrate) window.navigator.vibrate(40);
-    } else {
-      onNavigate(AppScreen.DETAIL, cluster.items[0]);
-    }
-  };
-
   const renderEmptyState = () => (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
       <div className="relative mb-6">
@@ -398,9 +348,9 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
     </div>
   );
 
-  if (loading) {
+  if (loading && !isRefreshing && destinations.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-off-white">
+      <div className="flex-1 min-h-screen flex items-center justify-center bg-off-white">
         <div className="flex flex-col items-center gap-4">
           <RefreshCw className="h-10 w-10 text-padang-green animate-spin" />
           <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Manggaleh Data...</p>
@@ -410,7 +360,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
   }
 
   return (
-    <div className="flex flex-col h-full bg-off-white relative overflow-hidden" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+    <div className="flex flex-col h-screen bg-off-white relative overflow-hidden" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       {/* Pull to Refresh Overlay */}
       <div className="absolute left-0 right-0 z-50 flex items-center justify-center transition-all duration-200 overflow-hidden pointer-events-none" style={{ height: isRefreshing ? 60 : pullDistance, top: 70 }}>
         <div className={`flex flex-col items-center gap-1 transition-all ${pullDistance > PULL_THRESHOLD || isRefreshing ? 'opacity-100 scale-100' : 'opacity-40 scale-90'}`}>
@@ -434,33 +384,109 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
             <button onClick={handleToggleDistanceSort} className={`h-11 px-4 rounded-2xl border flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${isSortingByDistance ? 'bg-chili-red text-white border-chili-red shadow-lg shadow-chili-red/20' : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>
               <LocateFixed className={`h-3.5 w-3.5 ${isSortingByDistance ? 'animate-pulse' : ''}`} /> Terdekat
             </button>
-            <button onClick={() => { setIsMapView(!isMapView); setSelectedRoute(null); setPullDistance(0); }} className={`h-11 w-11 rounded-2xl border flex items-center justify-center transition-all active:scale-95 shadow-sm ${isMapView ? 'bg-padang-green text-white border-padang-green shadow-lg shadow-padang-green/20' : 'bg-white text-padang-green border-gray-100'}`}>
+            <button onClick={() => { setIsMapView(!isMapView); setPullDistance(0); }} className={`h-11 w-11 rounded-2xl border flex items-center justify-center transition-all active:scale-95 shadow-sm ${isMapView ? 'bg-padang-green text-white border-padang-green shadow-lg shadow-padang-green/20' : 'bg-white text-padang-green border-gray-100'}`}>
               {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
             </button>
           </div>
         </div>
         {locationError && <div className="text-[10px] text-chili-red font-black animate-bounce bg-red-50 px-4 py-2 rounded-xl border border-red-100 uppercase tracking-widest">{locationError}</div>}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => { setActiveTab(cat); setSelectedRoute(null); }} className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === cat ? 'bg-padang-green text-white shadow-xl shadow-padang-green/20' : 'bg-white text-gray-400 border border-gray-100 hover:border-padang-green/30'}`}>
-              {cat}
-            </button>
-          ))}
+          {CATEGORIES.map(cat => {
+            const color = cat === 'Alam' ? 'border-emerald-500 text-emerald-600' :
+              cat === 'Budaya' ? 'border-amber-500 text-amber-600' :
+                cat === 'Belanja' ? 'border-violet-500 text-violet-600' :
+                  cat === 'Religi' ? 'border-blue-500 text-blue-600' :
+                    'border-padang-green text-padang-green';
+
+            const activeBg = cat === 'Alam' ? 'bg-emerald-500' :
+              cat === 'Budaya' ? 'bg-amber-500' :
+                cat === 'Belanja' ? 'bg-violet-500' :
+                  cat === 'Religi' ? 'bg-blue-500' :
+                    'bg-padang-green';
+
+            return (
+              <button
+                key={cat}
+                onClick={() => { setActiveTab(cat); }}
+                className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${activeTab === cat ? `${activeBg} text-white shadow-xl` : `bg-white text-gray-400 border border-gray-100 hover:${color}`}`}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Content Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar relative transition-transform duration-200 flex flex-col" style={{ transform: `translateY(${isRefreshing ? 60 : pullDistance}px)` }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar relative transition-transform duration-200 flex flex-col pb-20" style={{ transform: `translateY(${isRefreshing ? 60 : pullDistance}px)` }}>
         {filteredAndSorted.length === 0 ? renderEmptyState() : isMapView ? (
           <div className="h-full w-full relative bg-gray-200 overflow-hidden flex-1 min-h-[400px]">
             <LeafletExploreMap
+              ref={exploreMapRef}
               destinations={filteredAndSorted}
               userLocation={userLocation}
               onMarkerClick={(d) => onNavigate(AppScreen.DETAIL, d)}
             />
+
+            {/* Floating Search Bar on Map */}
+            <div className="absolute top-6 left-5 right-5 z-[1000] animate-in slide-in-from-top-4 duration-500">
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none transition-transform group-focus-within:scale-110">
+                  <Search className="h-4 w-4 text-gray-400 group-focus-within:text-padang-green" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Cari wisata Padang..."
+                  className="w-full bg-white/95 backdrop-blur-xl border border-white rounded-[24px] py-4 pl-11 pr-5 text-sm font-bold placeholder:text-gray-400 shadow-2xl focus:outline-none focus:ring-2 focus:ring-padang-green/30 focus:bg-white transition-all caret-padang-green"
+                  value={searchQuery}
+                  onChange={(e) => onSearch?.(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => onSearch?.('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center text-gray-300 hover:text-chili-red bg-gray-50/50 transition-colors"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Floating Search Results on Map */}
+            {searchQuery && filteredAndSorted.length > 0 && (
+              <div className="absolute bottom-6 left-0 right-0 z-[1000] px-5 animate-in slide-in-from-bottom-10 duration-500">
+                <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar snap-x">
+                  {filteredAndSorted.map(dest => (
+                    <div
+                      key={dest.id}
+                      onClick={() => {
+                        exploreMapRef.current?.flyTo(dest.coordinates.lat, dest.coordinates.lng);
+                        setActiveFeaturedId(dest.id);
+                        if (window.navigator.vibrate) window.navigator.vibrate(30);
+                      }}
+                      className={`min-w-[200px] h-24 bg-white/90 backdrop-blur-md rounded-3xl p-3 flex gap-3 shadow-2xl border transition-all snap-center cursor-pointer ${activeFeaturedId === dest.id ? 'border-padang-green ring-2 ring-padang-green/20 scale-105' : 'border-white'}`}
+                    >
+                      <div className="h-full w-20 rounded-2xl overflow-hidden shrink-0">
+                        <ImageWithPlaceholder src={dest.image} alt={dest.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex flex-col justify-center overflow-hidden">
+                        <h4 className="font-black text-gray-800 text-xs truncate leading-tight mb-1">{dest.name}</h4>
+                        <div className="flex items-center gap-1 mb-1">
+                          <Star className="h-2.5 w-2.5 text-yellow-500 fill-yellow-500" />
+                          <span className="text-[10px] font-black">{dest.rating}</span>
+                        </div>
+                        <div className="bg-padang-green/10 self-start px-2 py-0.5 rounded-lg">
+                          <span className="text-[8px] font-black text-padang-green uppercase">{dest.category}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="px-5 space-y-6 pb-20 pt-4">
+          <div className="px-5 space-y-6 pt-4">
             {filteredAndSorted.map((item) => {
               const distance = userLocation ? calculateDistance(userLocation.lat, userLocation.lng, item.coordinates.lat, item.coordinates.lng).toFixed(1) : null;
               return (
@@ -473,18 +499,11 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
                       <div className="bg-white/90 backdrop-blur-md text-padang-green text-[10px] font-black px-4 py-2 rounded-2xl shadow-lg border border-white flex items-center gap-2 uppercase tracking-widest">
                         <TagIcon className="h-3 w-3" /> {item.category}
                       </div>
-                      {item.image360 && (
-                        <div className="bg-chili-red/90 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-2xl shadow-lg border border-white/20 flex items-center gap-2 uppercase tracking-widest animate-pulse">
-                          <View className="h-3.5 w-3.5" /> 360° VIEW
-                        </div>
-                      )}
                     </div>
 
                     {/* Quick Actions */}
                     <div className="absolute top-4 right-4 flex flex-col gap-3">
                       <button className="h-11 w-11 bg-white/80 backdrop-blur-md rounded-2xl flex items-center justify-center text-gray-700 hover:text-chili-red transition-all shadow-xl border border-white active:scale-90"><Star className="h-5 w-5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleGetDirections(item); }} className="h-11 w-11 bg-chili-red text-white rounded-2xl flex items-center justify-center hover:bg-orange-700 transition-all shadow-xl border border-white/20 active:scale-90"><Navigation className="h-5 w-5" /></button>
-                      <button onClick={(e) => handleShowOnMap(e, item)} className="h-11 w-11 bg-padang-green text-white rounded-2xl flex items-center justify-center hover:bg-green-800 transition-all shadow-xl border border-white/20 active:scale-90"><Map className="h-5 w-5" /></button>
                     </div>
 
                     {/* Bottom Info Overlay */}
@@ -507,13 +526,13 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-black text-gray-800 text-lg group-hover:text-padang-green transition-colors leading-tight truncate pr-4">{item.name}</h3>
-                      <div className="h-8 w-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-padang-green group-hover:text-white transition-all">
+                      <div className="h-8 w-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-padang-green group-hover:text-white transition-all shrink-0">
                         <ArrowRight className="h-4 w-4" />
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-gray-400 mb-4">
-                      <MapPin className="h-4 w-4 text-chili-red" />
-                      <span className="text-xs font-bold">{item.location}</span>
+                      <MapPin className="h-4 w-4 text-chili-red shrink-0" />
+                      <span className="text-xs font-bold line-clamp-1">{item.location}</span>
                     </div>
 
                     <p className="text-[12px] text-gray-500 line-clamp-2 leading-relaxed font-medium">
@@ -528,20 +547,12 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
       </div>
 
       <style>{`
-        @keyframes route-flow {
-          to {
-            stroke-dashoffset: -100;
-          }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
         }
-        .animate-route-flow {
-          animation: route-flow 20s linear infinite;
-        }
-        @keyframes bounce-dramatic {
-          0%, 100% { transform: translateY(0) scale(1.1); }
-          50% { transform: translateY(-15px) scale(1.2); }
-        }
-        .animate-bounce-dramatic {
-          animation: bounce-dramatic 1s ease-in-out infinite;
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>

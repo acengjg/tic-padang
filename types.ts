@@ -72,7 +72,9 @@ export enum AppScreen {
   BUDDY_POST_DETAIL = 'buddy_post_detail',
   GUIDE_DASHBOARD = 'guide_dashboard',
   CREATE_PACKAGE = 'create_package',
-  PUBLIC_PROFILE = 'public_profile'
+  PUBLIC_PROFILE = 'public_profile',
+  CULINARY_SPOTS = 'culinary_spots',
+  CULINARY_DETAIL = 'culinary_detail'
 }
 
 export interface TravelBuddyPost {
@@ -247,4 +249,41 @@ export interface Booking {
   bookingStatus: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   package?: TourPackage;
   guide?: Guide;
+}
+
+export interface CulinarySpot {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  priceRange: string;
+  address: string;
+  lat: number;
+  lng: number;
+  image: string;
+  images: string[];
+  facilities: string[];
+  openingHours: any;
+  menuHighlights: any;
+  rating: number;
+  totalReviews: number;
+  isHalal: boolean;
+  reviews?: CulinaryReview[];
+}
+
+export interface CulinaryReview {
+  id: string;
+  spotId: string;
+  userId: string;
+  rating: number;
+  tasteRating?: number;
+  serviceRating?: number;
+  ambienceRating?: number;
+  comment: string;
+  photos: string[];
+  createdAt: string;
+  user?: {
+    name: string;
+    avatar: string | null;
+  };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Save, Plus, Trash2, MapPin, Clock, Users, Info, DollarSign, X, Loader2, Map as MapIcon } from 'lucide-react';
+import { ChevronLeft, Save, Plus, Trash2, MapPin, Clock, Users, Info, X, Loader2, Map as MapIcon } from 'lucide-react';
 import { apiService } from '../client';
 import { AppScreen } from '../types';
 
@@ -221,7 +221,7 @@ const CreatePackageScreen: React.FC<CreatePackageScreenProps> = ({ onBack, onSuc
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Harga Dasar (Rp)</label>
                             <div className="relative">
-                                <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-padang-green" />
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-padang-green">Rp</span>
                                 <input
                                     type="number"
                                     className="w-full bg-gray-50 border-none rounded-2xl p-4 pl-10 text-xs font-bold focus:ring-2 ring-padang-green/20"

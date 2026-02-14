@@ -79,4 +79,4 @@ export const PROMOTIONS: Promotion[] = [
   }
 ];
 
-export const CATEGORIES = ['Semua', 'Alam', 'Kuliner', 'Budaya', 'Belanja', 'Religi'] as const;
+export const CATEGORIES = ['Semua', 'Alam', 'Budaya', 'Belanja', 'Religi'] as const;

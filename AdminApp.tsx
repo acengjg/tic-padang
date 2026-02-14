@@ -4,17 +4,43 @@ import { createRoot } from 'react-dom/client';
 import {
     Users, MapPin, BarChart3, Settings,
     LogOut, Shield, Search, Plus, Trash2, Edit, X, Save, Map as MapIcon, Calendar, CheckCircle, XCircle,
-    Eye, Crosshair, Type
+    Eye, Crosshair, Type, Utensils
 } from 'lucide-react';
 
 const API_BASE_URL = '/api';
 
 const getProxiedImageUrl = (url: string) => {
     if (!url) return '';
-    if (url.startsWith('http')) {
+    if (url.startsWith('http') && !url.includes('api.dicebear.com')) {
         return `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(url)}`;
     }
     return url;
+};
+
+const SafeImage: React.FC<{ src: string; alt: string; className?: string }> = ({ src, alt, className }) => {
+    const [imgSrc, setImgSrc] = useState(getProxiedImageUrl(src));
+    const [hasError, setHasError] = useState(false);
+
+    useEffect(() => {
+        setImgSrc(getProxiedImageUrl(src));
+        setHasError(false);
+    }, [src]);
+
+    const handleError = () => {
+        if (!hasError) {
+            setHasError(true);
+            setImgSrc(`https://api.dicebear.com/7.x/initials/svg?seed=${alt}`);
+        }
+    };
+
+    return (
+        <img
+            src={imgSrc || `https://api.dicebear.com/7.x/initials/svg?seed=${alt}`}
+            alt={alt}
+            className={className}
+            onError={handleError}
+        />
+    );
 };
 
 const ImagePreview: React.FC<{ url: string }> = ({ url }) => {
@@ -444,6 +470,16 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
     const markerRef = React.useRef<any>(null);
 
     React.useEffect(() => {
+        if (leafletRef.current && markerRef.current) {
+            const currentPos = markerRef.current.getLatLng();
+            if (currentPos.lat !== lat || currentPos.lng !== lng) {
+                markerRef.current.setLatLng([lat, lng]);
+                leafletRef.current.setView([lat, lng], leafletRef.current.getZoom());
+            }
+        }
+    }, [lat, lng]);
+
+    React.useEffect(() => {
         const checkForLeaflet = setInterval(() => {
             if ((window as any).L && mapRef.current && !leafletRef.current) {
                 clearInterval(checkForLeaflet);
@@ -527,7 +563,7 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
 const AdminApp: React.FC = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
-    const [activeTab, setActiveTab] = useState<'users' | 'destinations' | 'events' | 'promotions' | 'articles' | 'guides'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'destinations' | 'events' | 'promotions' | 'articles' | 'guides' | 'culinary'>('users');
     const [items, setItems] = useState<any[]>([]);
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
 
@@ -568,7 +604,8 @@ const AdminApp: React.FC = () => {
         if (!token) return;
         try {
             console.log(`Fetching ${activeTab}...`);
-            const res = await fetch(`${API_BASE_URL}/admin/${activeTab}`, {
+            const endpoint = activeTab === 'culinary' ? 'culinary-spots' : activeTab;
+            const res = await fetch(`${API_BASE_URL}/admin/${endpoint}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -591,6 +628,7 @@ const AdminApp: React.FC = () => {
             // Parse nested JSON if needed
             const hotspots = item.hotspots ? (typeof item.hotspots === 'string' ? JSON.parse(item.hotspots) : item.hotspots) : [];
             const scenes = item.scenes ? (typeof item.scenes === 'string' ? JSON.parse(item.scenes) : item.scenes) : [];
+            const menuHighlights = item.menuHighlights ? (typeof item.menuHighlights === 'string' ? JSON.parse(item.menuHighlights) : item.menuHighlights) : [];
 
             // Migration: If no scenes but has image360, create initial scene
             let finalScenes = scenes;
@@ -606,7 +644,8 @@ const AdminApp: React.FC = () => {
             setFormData({
                 ...item,
                 hotspots,
-                scenes: finalScenes
+                scenes: finalScenes,
+                menuHighlights
             });
         } else {
             setEditingItem(null);
@@ -622,6 +661,12 @@ const AdminApp: React.FC = () => {
                 setFormData({ name: '', date: new Date().toISOString(), location: '', image: '', description: '', price: '' });
             } else if (activeTab === 'articles') {
                 setFormData({ title: '', content: '', image: '', category: 'Wisata', author: 'Admin' });
+            } else if (activeTab === 'culinary') {
+                setFormData({
+                    name: '', category: 'Cafe', description: '', priceRange: '$$',
+                    address: '', lat: -0.947, lng: 100.417, image: '', images: [],
+                    facilities: [], openingHours: {}, menuHighlights: [], contact: '', isHalal: true
+                });
             } else if (activeTab === 'guides') {
                 setFormData({}); // Guides are manually verified, not typically created here
             } else {
@@ -634,10 +679,27 @@ const AdminApp: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingItem ? 'PUT' : 'POST';
-        const url = editingItem ? `${API_BASE_URL}/admin/${activeTab}/${editingItem.id}` : `${API_BASE_URL}/admin/${activeTab}`;
+        const endpoint = activeTab === 'culinary' ? 'culinary-spots' : activeTab;
+        const url = editingItem ? `${API_BASE_URL}/admin/${endpoint}/${editingItem.id}` : `${API_BASE_URL}/admin/${endpoint}`;
 
         // Prepare formData for submission, especially for hotspots
         const dataToSubmit = { ...formData };
+
+        // Auto-calculate price range for culinary
+        if (activeTab === 'culinary') {
+            const menus = dataToSubmit.menuHighlights || [];
+            let calculatedRange = 'Harga Menyesuaikan'; // Default
+            const prices = menus.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0);
+            if (prices.length > 0) {
+                const min = Math.min(...prices);
+                const max = Math.max(...prices);
+                calculatedRange = min === max
+                    ? `Rp ${min.toLocaleString('id-ID')}`
+                    : `Rp ${min.toLocaleString('id-ID')} - Rp ${max.toLocaleString('id-ID')}`;
+            }
+            dataToSubmit.priceRange = calculatedRange;
+        }
+
         if (activeTab === 'destinations') {
             if (dataToSubmit.hotspots) dataToSubmit.hotspots = JSON.stringify(dataToSubmit.hotspots);
             if (dataToSubmit.scenes) dataToSubmit.scenes = JSON.stringify(dataToSubmit.scenes);
@@ -667,7 +729,8 @@ const AdminApp: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('Yakin ingin menghapus?')) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/${activeTab}/${id}`, {
+            const endpoint = activeTab === 'culinary' ? 'culinary-spots' : activeTab;
+            const res = await fetch(`${API_BASE_URL}/admin/${endpoint}/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -761,6 +824,7 @@ const AdminApp: React.FC = () => {
                     {[
                         { id: 'users', label: 'Pengguna', icon: Users },
                         { id: 'destinations', label: 'Destinasi', icon: MapPin },
+                        { id: 'culinary', label: 'Kelola Kuliner', icon: Utensils },
                         { id: 'events', label: 'Event Kota', icon: Calendar },
                         { id: 'promotions', label: 'Promosi', icon: Settings },
                         { id: 'articles', label: 'Berita & Artikel', icon: BarChart3 },
@@ -796,9 +860,10 @@ const AdminApp: React.FC = () => {
                         <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">
                             {activeTab === 'users' ? 'Manajemen User' :
                                 activeTab === 'destinations' ? 'Kelola Destinasi' :
-                                    activeTab === 'events' ? 'Kelola Event' :
-                                        activeTab === 'articles' ? 'Berita & Artikel' :
-                                            activeTab === 'guides' ? 'Verifikasi Pemandu' : 'Kelola Promosi'}
+                                    activeTab === 'culinary' ? 'Kelola Kuliner' :
+                                        activeTab === 'events' ? 'Kelola Event' :
+                                            activeTab === 'articles' ? 'Berita & Artikel' :
+                                                activeTab === 'guides' ? 'Verifikasi Pemandu' : 'Kelola Promosi'}
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">TIC-PADANG Admin Control Center</p>
                     </div>
@@ -807,7 +872,7 @@ const AdminApp: React.FC = () => {
                         disabled={activeTab === 'guides'}
                         className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
                     >
-                        <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : 'Data'}
+                        <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'culinary' ? 'Tempat Kuliner' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : 'Data'}
                     </button>
                 </header>
 
@@ -819,9 +884,10 @@ const AdminApp: React.FC = () => {
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                     {activeTab === 'users' ? 'Role / Level' :
                                         activeTab === 'destinations' ? 'Kategori / Lokasi' :
-                                            activeTab === 'promotions' ? 'Diskon / Provider' :
-                                                activeTab === 'guides' ? 'Status / Exp' :
-                                                    activeTab === 'articles' ? 'Kategori / Author' : 'Lokasi / Harga'}
+                                            activeTab === 'culinary' ? 'Kategori / Harga' :
+                                                activeTab === 'promotions' ? 'Diskon / Provider' :
+                                                    activeTab === 'guides' ? 'Status / Exp' :
+                                                        activeTab === 'articles' ? 'Kategori / Author' : 'Lokasi / Harga'}
                                 </th>
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Aksi</th>
                             </tr>
@@ -838,16 +904,17 @@ const AdminApp: React.FC = () => {
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-4">
                                             <div className="h-12 w-12 rounded-2xl bg-gray-100 overflow-hidden border border-gray-50">
-                                                <img src={getProxiedImageUrl(item.avatar || item.image || item.user?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${item.name || item.title || item.user?.name}`)} className="w-full h-full object-cover" />
+                                                <SafeImage src={item.avatar || item.image || item.user?.avatar} alt={item.name || item.title || item.user?.name} className="w-full h-full object-cover" />
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-800">{item.name || item.title || item.user?.name}</p>
                                                 <p className="text-xs text-gray-400">
                                                     {activeTab === 'users' ? item.email :
                                                         activeTab === 'guides' ? item.user?.email :
-                                                            activeTab === 'promotions' ? item.provider :
-                                                                activeTab === 'articles' ? (item.content ? item.content.substring(0, 30) + '...' : '') :
-                                                                    activeTab === 'events' ? new Date(item.date).toLocaleDateString() : item.category}
+                                                            activeTab === 'culinary' ? item.address :
+                                                                activeTab === 'promotions' ? item.provider :
+                                                                    activeTab === 'articles' ? (item.content ? item.content.substring(0, 30) + '...' : '') :
+                                                                        activeTab === 'events' ? new Date(item.date).toLocaleDateString() : item.category}
                                                 </p>
                                             </div>
                                         </div>
@@ -856,21 +923,38 @@ const AdminApp: React.FC = () => {
                                         <div className="flex flex-col gap-1">
                                             <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest inline-block self-start ${activeTab === 'users' ? (item.role === 'ADMIN' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-600') :
                                                 activeTab === 'destinations' ? (item.category === 'Alam' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600') :
-                                                    activeTab === 'promotions' ? 'bg-orange-100 text-orange-600' :
-                                                        activeTab === 'guides' ? (item.status === 'APPROVED' ? 'bg-padang-green/10 text-padang-green' : item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600') :
-                                                            activeTab === 'articles' ? 'bg-blue-100 text-blue-600' : 'bg-padang-green/10 text-padang-green'
+                                                    activeTab === 'culinary' ? 'bg-orange-100 text-orange-600' :
+                                                        activeTab === 'promotions' ? 'bg-orange-100 text-orange-600' :
+                                                            activeTab === 'guides' ? (item.status === 'APPROVED' ? 'bg-padang-green/10 text-padang-green' : item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600') :
+                                                                activeTab === 'articles' ? 'bg-blue-100 text-blue-600' : 'bg-padang-green/10 text-padang-green'
                                                 }`}>
                                                 {activeTab === 'users' ? item.role :
                                                     activeTab === 'destinations' ? item.category :
-                                                        activeTab === 'promotions' ? 'PROMO' :
-                                                            activeTab === 'guides' ? item.status :
-                                                                activeTab === 'articles' ? item.category : 'EVENT'}
+                                                        activeTab === 'culinary' ? item.category :
+                                                            activeTab === 'promotions' ? 'PROMO' :
+                                                                activeTab === 'guides' ? item.status :
+                                                                    activeTab === 'articles' ? item.category : 'EVENT'}
                                             </span>
                                             <p className="text-[10px] text-gray-400 font-bold ml-1">
-                                                {item.location || (activeTab === 'promotions' ? `${item.discount} • ${item.videoUrl ? 'With Video' : 'Image only'}` :
-                                                    activeTab === 'guides' ? `${item.yearsExperience} Thn Exp • ${item.languages?.join(', ')}` :
-                                                        activeTab === 'articles' ? `By ${item.author} • ${new Date(item.date).toLocaleDateString()}` :
-                                                            typeof item.level === 'number' ? `Lvl ${item.level} • ${item.points} Pts` : '')}
+                                                {item.location || (activeTab === 'culinary' ? (() => {
+                                                    // Dynamic price calculation
+                                                    if (item.priceRange && item.priceRange.includes('Rp') && !item.priceRange.includes('Rp Rp')) return item.priceRange;
+
+                                                    const menus = typeof item.menuHighlights === 'string' ? JSON.parse(item.menuHighlights) : (item.menuHighlights || []);
+                                                    const prices = Array.isArray(menus) ? menus.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0) : [];
+
+                                                    if (prices.length > 0) {
+                                                        const min = Math.min(...prices);
+                                                        const max = Math.max(...prices);
+                                                        return min === max ? `Rp ${min.toLocaleString('id-ID')}` : `Rp ${min.toLocaleString('id-ID')} - Rp ${max.toLocaleString('id-ID')}`;
+                                                    }
+
+                                                    return item.priceRange ? item.priceRange.replace(/\$/g, 'Rp ') : 'Harga Menyesuaikan';
+                                                })() :
+                                                    activeTab === 'promotions' ? `${item.discount} • ${item.videoUrl ? 'With Video' : 'Image only'}` :
+                                                        activeTab === 'guides' ? `${item.yearsExperience} Thn Exp • ${item.languages?.join(', ')}` :
+                                                            activeTab === 'articles' ? `By ${item.author} • ${new Date(item.date).toLocaleDateString()}` :
+                                                                typeof item.level === 'number' ? `Lvl ${item.level} • ${item.points} Pts` : '')}
                                             </p>
                                         </div>
                                     </td>
@@ -977,7 +1061,6 @@ const AdminApp: React.FC = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Kategori</label>
                                             <select value={formData.category || 'Alam'} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold">
                                                 <option value="Alam">Alam</option>
-                                                <option value="Kuliner">Kuliner</option>
                                                 <option value="Budaya">Budaya</option>
                                                 <option value="Belanja">Belanja</option>
                                                 <option value="Religi">Religi</option>
@@ -1117,7 +1200,7 @@ const AdminApp: React.FC = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Kategori</label>
                                             <select value={formData.category || 'Wisata'} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold">
                                                 <option value="Wisata">Wisata</option>
-                                                <option value="Kuliner">Kuliner</option>
+
                                                 <option value="Budaya">Budaya</option>
                                                 <option value="Event">Event</option>
                                                 <option value="Tips">Tips</option>
@@ -1134,6 +1217,129 @@ const AdminApp: React.FC = () => {
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Konten Artikel</label>
                                             <textarea required value={formData.content || ''} onChange={(e) => setFormData({ ...formData, content: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none min-h-[200px]" placeholder="Tulis artikel lengkap di sini..." />
+                                        </div>
+                                    </>
+                                )}
+
+                                {activeTab === 'culinary' && (
+                                    <>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Nama Tempat Kuliner</label>
+                                            <input required type="text" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Kategori</label>
+                                            <select value={formData.category || 'Cafe'} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold">
+                                                <option value="Cafe">Cafe</option>
+                                                <option value="Restoran">Restoran</option>
+                                                <option value="Warung">Warung</option>
+                                                <option value="Dessert">Dessert</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Range Harga (Otomatis)</label>
+                                            <div className="w-full bg-gray-100 border border-gray-100 rounded-2xl py-4 px-6 font-bold text-gray-500">
+                                                {(() => {
+                                                    const menus = formData.menuHighlights || [];
+                                                    if (!menus || menus.length === 0) return 'Belum ada menu';
+                                                    const prices = menus.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0);
+                                                    if (prices.length === 0) return 'Belum ada harga';
+                                                    const min = Math.min(...prices);
+                                                    const max = Math.max(...prices);
+                                                    return min === max
+                                                        ? `Rp ${min.toLocaleString('id-ID')}`
+                                                        : `Rp ${min.toLocaleString('id-ID')} - Rp ${max.toLocaleString('id-ID')}`;
+                                                })()}
+                                            </div>
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Utama</label>
+                                            <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Lengkap</label>
+                                            <textarea required value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none min-h-[120px]" placeholder="Ceritakan tentang tempat kuliner ini..." />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Alamat</label>
+                                            <input required type="text" value={formData.address || ''} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Latitude</label>
+                                            <input required type="number" step="any" value={formData.lat || 0} onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Longitude</label>
+                                            <input required type="number" step="any" value={formData.lng || 0} onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <MapPicker lat={formData.lat || -0.947} lng={formData.lng || 100.417} onChange={(lat, lng) => setFormData(prev => ({ ...prev, lat, lng }))} />
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Nomor Kontak</label>
+                                            <input type="text" value={formData.contact || ''} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="08xx-xxxx-xxxx" />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Fasilitas (pisahkan dengan koma)</label>
+                                            <input type="text" value={(formData.facilities || []).join(', ')} onChange={(e) => setFormData({ ...formData, facilities: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="WiFi, Parking, AC, Outdoor Seating" />
+                                        </div>
+                                        <div className="col-span-2 flex items-center gap-3 bg-gray-50 p-4 rounded-2xl">
+                                            <input type="checkbox" id="isHalal" checked={formData.isHalal !== false} onChange={(e) => setFormData({ ...formData, isHalal: e.target.checked })} className="h-5 w-5 text-padang-green rounded" />
+                                            <label htmlFor="isHalal" className="text-sm font-bold text-gray-700 cursor-pointer">Tempat ini menyediakan makanan Halal</label>
+                                        </div>
+
+                                        <div className="col-span-2 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Menu Unggulan</label>
+                                                <button type="button" onClick={() => {
+                                                    const currentMenus = formData.menuHighlights || [];
+                                                    setFormData({ ...formData, menuHighlights: [...currentMenus, { name: '', price: '', image: '' }] });
+                                                }} className="text-xs font-bold text-padang-green hover:underline">+ Tambah Menu</button>
+                                            </div>
+
+                                            {(formData.menuHighlights || []).map((menu: any, index: number) => (
+                                                <div key={index} className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3 relative group">
+                                                    <button type="button" onClick={() => {
+                                                        const newMenus = [...(formData.menuHighlights || [])];
+                                                        newMenus.splice(index, 1);
+                                                        setFormData({ ...formData, menuHighlights: newMenus });
+                                                    }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 transition-colors p-2">
+                                                        <Trash2 size={16} />
+                                                    </button>
+
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Menu</label>
+                                                            <input type="text" value={menu.name} onChange={(e) => {
+                                                                const newMenus = [...(formData.menuHighlights || [])];
+                                                                newMenus[index].name = e.target.value;
+                                                                setFormData({ ...formData, menuHighlights: newMenus });
+                                                            }} className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 text-sm font-bold focus:ring-2 focus:ring-padang-green/10 outline-none" placeholder="Contoh: Rendang" />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Harga</label>
+                                                            <input type="number" value={menu.price} onChange={(e) => {
+                                                                const newMenus = [...(formData.menuHighlights || [])];
+                                                                newMenus[index].price = e.target.value;
+                                                                setFormData({ ...formData, menuHighlights: newMenus });
+                                                            }} className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 text-sm font-bold focus:ring-2 focus:ring-padang-green/10 outline-none" placeholder="Contoh: 25000" />
+                                                        </div>
+                                                        <div className="col-span-2 space-y-1">
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">URL Gambar</label>
+                                                            <input type="text" value={menu.image} onChange={(e) => {
+                                                                const newMenus = [...(formData.menuHighlights || [])];
+                                                                newMenus[index].image = e.target.value;
+                                                                setFormData({ ...formData, menuHighlights: newMenus });
+                                                            }} className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 text-sm focus:ring-2 focus:ring-padang-green/10 outline-none" placeholder="https://..." />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {(formData.menuHighlights || []).length === 0 && (
+                                                <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
+                                                    Belum ada menu unggulan. Klik "+ Tambah Menu" untuk menambahkan.
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 )}

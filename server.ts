@@ -459,7 +459,180 @@ app.delete('/api/admin/articles/:id', authenticateToken, requireAdmin, async (re
   }
 });
 
+// --- CULINARY SPOTS ADMIN ROUTES ---
+
+app.get('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const spots = await prisma.culinarySpot.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(spots);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data kuliner' });
+  }
+});
+
+app.post('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    console.log('Received Culinary Spot Data:', JSON.stringify(req.body, null, 2));
+    const { name, category, description, priceRange, address, lat, lng, image, images, facilities, openingHours, menuHighlights, contact, isHalal } = req.body;
+
+    const missingFields = [];
+    if (!name) missingFields.push('name');
+    if (!category) missingFields.push('category');
+    if (!priceRange) missingFields.push('priceRange');
+    if (!address) missingFields.push('address');
+    if (lat === undefined) missingFields.push('lat');
+    if (lng === undefined) missingFields.push('lng');
+    if (!image) missingFields.push('image');
+
+    if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields);
+      return res.status(400).json({ error: `Data tidak lengkap. Field yang kosong: ${missingFields.join(', ')}` });
+    }
+
+    console.log('Validation passed. Creating spot...');
+
+    const spotData = {
+      name,
+      category,
+      description,
+      priceRange,
+      address,
+      lat: typeof lat === 'string' ? parseFloat(lat) : Number(lat),
+      lng: typeof lng === 'string' ? parseFloat(lng) : Number(lng),
+      image,
+      images: images || [],
+      facilities: facilities || [],
+      openingHours: openingHours || {},
+      menuHighlights: menuHighlights || [],
+      contact: contact || '',
+      isHalal: isHalal !== undefined ? isHalal : true
+    };
+
+    console.log('Spot Data prepared:', JSON.stringify(spotData, null, 2));
+
+    const spot = await prisma.culinarySpot.create({
+      data: spotData
+    });
+    console.log('Spot created successfully:', spot.id);
+    res.status(201).json(spot);
+  } catch (error) {
+    console.error('Create Culinary Spot Error:', error);
+    res.status(500).json({ error: 'Gagal membuat tempat kuliner' });
+  }
+});
+
+app.put('/api/admin/culinary-spots/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const { name, category, description, priceRange, address, lat, lng, image, images, facilities, openingHours, menuHighlights, contact, isHalal } = req.body;
+
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (category !== undefined) data.category = category;
+    if (description !== undefined) data.description = description;
+    if (priceRange !== undefined) data.priceRange = priceRange;
+    if (address !== undefined) data.address = address;
+    if (lat !== undefined) data.lat = parseFloat(lat);
+    if (lng !== undefined) data.lng = parseFloat(lng);
+    if (image !== undefined) data.image = image;
+    if (images !== undefined) data.images = images;
+    if (facilities !== undefined) data.facilities = facilities;
+    if (openingHours !== undefined) data.openingHours = openingHours;
+    if (menuHighlights !== undefined) data.menuHighlights = menuHighlights;
+    if (contact !== undefined) data.contact = contact;
+    if (isHalal !== undefined) data.isHalal = isHalal;
+
+    const spot = await prisma.culinarySpot.update({
+      where: { id: String(req.params.id) },
+      data
+    });
+    res.json(spot);
+  } catch (error) {
+    console.error('Update Culinary Spot Error:', error);
+    res.status(500).json({ error: 'Gagal mengupdate tempat kuliner' });
+  }
+});
+
+app.delete('/api/admin/culinary-spots/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    await prisma.culinarySpot.delete({ where: { id: String(req.params.id) } });
+    res.json({ message: 'Tempat kuliner berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal menghapus tempat kuliner' });
+  }
+});
+
+// --- CULINARY REVIEWS ROUTES ---
+
+app.get('/api/culinary-spots/:id/reviews', async (req: Request, res: Response) => {
+  try {
+    const reviews = await prisma.culinaryReview.findMany({
+      where: { spotId: String(req.params.id) },
+      include: { user: { select: { name: true, avatar: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(reviews);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil ulasan kuliner' });
+  }
+});
+
+app.post('/api/culinary-spots/:id/reviews', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const { rating, comment, photos, tasteRating, serviceRating, ambienceRating } = req.body;
+    const userId = req.user.id;
+    const spotId = req.params.id;
+
+    // Check if user already reviewed
+    const existingReview = await prisma.culinaryReview.findFirst({
+      where: { userId, spotId }
+    });
+
+    if (existingReview) {
+      return res.status(400).json({ error: 'Anda sudah memberikan ulasan untuk tempat ini' });
+    }
+
+    const review = await prisma.culinaryReview.create({
+      data: {
+        userId,
+        spotId,
+        rating: Number(rating),
+        tasteRating: tasteRating ? Number(tasteRating) : null,
+        serviceRating: serviceRating ? Number(serviceRating) : null,
+        ambienceRating: ambienceRating ? Number(ambienceRating) : null,
+        comment,
+        photos: photos || []
+      },
+      include: { user: { select: { name: true, avatar: true } } }
+    });
+
+    // Update Average Rating
+    const aggregations = await prisma.culinaryReview.aggregate({
+      where: { spotId },
+      _avg: { rating: true },
+      _count: { rating: true }
+    });
+
+    await prisma.culinarySpot.update({
+      where: { id: spotId },
+      data: {
+        rating: aggregations._avg.rating || 0,
+        totalReviews: aggregations._count.rating || 0
+      }
+    });
+
+    console.log(`Updated rating for spot ${spotId}: ${aggregations._avg.rating} (${aggregations._count.rating} reviews)`);
+
+    res.status(201).json(review);
+  } catch (error) {
+    console.error('Submit Culinary Review Error:', error);
+    res.status(500).json({ error: 'Gagal mengirim ulasan' });
+  }
+});
+
 // --- REVIEWS ROUTES ---
+
 
 app.get('/api/reviews/:destinationId', async (req: Request, res: Response) => {
   try {
@@ -476,13 +649,45 @@ app.get('/api/reviews/:destinationId', async (req: Request, res: Response) => {
 
 app.get('/api/reviews/user/:userId', async (req: Request, res: Response) => {
   try {
-    const reviews = await prisma.review.findMany({
-      where: { userId: String(req.params.userId) },
-      include: { destination: { select: { name: true, image: true } } },
-      orderBy: { createdAt: 'desc' }
-    });
-    res.json(reviews);
+    const userId = String(req.params.userId);
+    console.log(`[API] Fetching reviews for user: ${userId}`);
+
+    const [destinationReviews, culinaryReviews] = await Promise.all([
+      prisma.review.findMany({
+        where: { userId },
+        include: { destination: { select: { name: true, image: true } } },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.culinaryReview.findMany({
+        where: { userId },
+        include: { spot: { select: { name: true, image: true } } },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
+
+    console.log(`[API] Found ${destinationReviews.length} dest reviews and ${culinaryReviews.length} culinary reviews`);
+
+    // Normalize culinary reviews to match destination reviews structure
+    const formattedCulinaryReviews = culinaryReviews.map(review => ({
+      ...review,
+      destination: review.spot, // Map spot to destination for unified frontend display
+      type: 'CULINARY'
+    }));
+
+    const formattedDestReviews = destinationReviews.map(review => ({
+      ...review,
+      type: 'DESTINATION'
+    }));
+
+    const allReviews = [...formattedDestReviews, ...formattedCulinaryReviews].sort((a: any, b: any) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    console.log(`[API] Returning total ${allReviews.length} reviews`);
+
+    res.json(allReviews);
   } catch (error) {
+    console.error('Fetch User Reviews Error:', error);
     res.status(500).json({ error: 'Gagal mengambil riwayat ulasan' });
   }
 });
@@ -598,6 +803,24 @@ const fetchSocialImage = async (originalUrl: string): Promise<{ buffer: Buffer, 
       const retryUrl = baseUrl.endsWith('/') ? `${baseUrl}media/` : `${baseUrl}/media/`;
       logProxy(`Retrying Instagram with simple /media/: ${retryUrl}`);
       response = await fetch(retryUrl, fetchOptions);
+    }
+
+    // If still failed, try oEmbed API (official endpoint)
+    if (!response.ok && isInstagram) {
+      try {
+        const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(fixedUrl)}`;
+        logProxy(`Retrying Instagram with oEmbed: ${oembedUrl}`);
+        const oembedRes = await fetch(oembedUrl);
+        if (oembedRes.ok) {
+          const json: any = await oembedRes.json();
+          if (json.thumbnail_url) {
+            logProxy(`Found thumbnail URL from oEmbed: ${json.thumbnail_url}`);
+            response = await fetch(json.thumbnail_url, fetchOptions);
+          }
+        }
+      } catch (e: any) {
+        logProxy(`oEmbed failed: ${e.message}`);
+      }
     }
 
     if (!response.ok) {
@@ -1819,6 +2042,52 @@ app.put('/api/buddies/applications/:id', authenticateToken, async (req: any, res
   }
 });
 
+// --- CULINARY SPOTS API ---
+
+app.get('/api/culinary-spots', async (req: Request, res: Response) => {
+  try {
+    const { category, search } = req.query;
+    const where: any = {};
+    if (category && category !== 'Semua') where.category = String(category);
+    if (search) {
+      where.OR = [
+        { name: { contains: String(search), mode: 'insensitive' } },
+        { description: { contains: String(search), mode: 'insensitive' } },
+        { address: { contains: String(search), mode: 'insensitive' } }
+      ];
+    }
+
+    const spots = await prisma.culinarySpot.findMany({
+      where,
+      orderBy: { rating: 'desc' }
+    });
+    res.json(spots);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data kuliner' });
+  }
+});
+
+app.get('/api/culinary-spots/:id', async (req: Request, res: Response) => {
+  try {
+    const spot = await prisma.culinarySpot.findUnique({
+      where: { id: String(req.params.id) },
+      include: {
+        reviews: {
+          include: { user: { select: { name: true, avatar: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 5
+        }
+      }
+    });
+    if (!spot) return res.status(404).json({ error: 'Tempat kuliner tidak ditemukan' });
+    res.json(spot);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil detail kuliner' });
+  }
+});
+
+
+
 
 // --- SERVE FRONTEND (PRODUCTION) ---
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -1829,6 +2098,28 @@ app.get(/(.*)/, (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('exit', (code) => {
+  console.log(`Process exited with code: ${code}`);
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Backend TIC-PADANG berjalan di http://0.0.0.0:${PORT}`);
 });
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+});
+
+// Force keep-alive (HACK)
+setInterval(() => { }, 1000 * 60 * 60);

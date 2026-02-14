@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Leaf, Utensils, Theater, ShoppingBag, Landmark, Loader2, Calendar, DollarSign, Map, Check, X, Printer, Camera, Save } from 'lucide-react';
+import { Leaf, Utensils, Theater, ShoppingBag, Landmark, Loader2, Calendar, Map, Check, X, Printer, Camera, Save } from 'lucide-react';
 import { apiService } from '../client';
 import { Destination } from '../types';
 
@@ -133,7 +133,7 @@ const TripPlannerScreen: React.FC<TripPlannerScreenProps> = ({ onBack }) => {
                     <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                                <DollarSign size={20} />
+                                <span className="font-black text-sm">Rp</span>
                             </div>
                             <h3 className="font-bold text-gray-800">Estimasi Budget (Per Orang)</h3>
                         </div>

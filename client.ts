@@ -166,7 +166,7 @@ export const apiService = {
 
   getUserReviews: async (userId: string): Promise<(Review & { destination: { name: string; image: string } })[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/reviews/user/${userId}`);
+      const response = await fetch(`${API_BASE_URL}/reviews/user/${userId}?t=${Date.now()}`);
       if (!response.ok) throw new Error('Failed to fetch user reviews');
       return await response.json();
     } catch (error) {
@@ -559,6 +559,42 @@ export const apiService = {
       body: JSON.stringify({ reason })
     });
     if (!response.ok) throw new Error('Failed to cancel booking');
+    return await response.json();
+  },
+
+  // Culinary Spots
+  getCulinarySpots: async (filters?: any) => {
+    const queryString = filters ? '?' + new URLSearchParams(filters).toString() : '';
+    const response = await fetch(`${API_BASE_URL}/culinary-spots${queryString}`);
+    if (!response.ok) throw new Error('Failed to fetch culinary spots');
+    return await response.json();
+  },
+
+  getCulinarySpotDetail: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/culinary-spots/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch culinary spot detail');
+    return await response.json();
+  },
+
+  submitCulinaryReview: async (spotId: string, reviewData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/culinary-spots/${spotId}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(reviewData)
+    });
+    if (!response.ok) {
+      const errorData = await response.text();
+      try {
+        const json = JSON.parse(errorData);
+        throw new Error(json.error || 'Failed to submit review');
+      } catch {
+        throw new Error('Failed to submit review');
+      }
+    }
     return await response.json();
   }
 };

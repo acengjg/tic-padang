@@ -52,6 +52,21 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
     }
   };
 
+  const refreshReviews = async () => {
+    if (profile?.id) {
+      console.log("Refreshing reviews for user:", profile.id);
+      try {
+        const data = await apiService.getUserReviews(profile.id);
+        console.log("Reviews fetched:", data.length, data);
+        setReviews(data);
+      } catch (e) {
+        console.error("Failed to refresh reviews", e);
+      }
+    } else {
+      console.log("Cannot refresh reviews: No profile ID");
+    }
+  };
+
   const handleCancelBooking = async (id: string) => {
     const reason = window.prompt("Berikan alasan pembatalan Anda:");
     if (reason === null) return;
@@ -77,7 +92,15 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
     { icon: Bookmark, label: t.profile.my_bookings, count: String(bookings.length), action: () => setShowBookings(true) },
     { icon: Heart, label: t.profile.my_favorites, count: '12' },
     { icon: Map, label: t.profile.travel_history, count: '24' },
-    { icon: MessageSquare, label: t.profile.review_history, count: String(reviews.length), action: () => setShowReviews(true) },
+    {
+      icon: MessageSquare,
+      label: t.profile.review_history,
+      count: String(reviews.length),
+      action: () => {
+        refreshReviews();
+        setShowReviews(true);
+      }
+    },
     {
       icon: guideInfo?.status === 'APPROVED' ? CheckCircle2 : Star,
       label: guideInfo?.status === 'APPROVED' ? 'Info Guide Approved' : (guideInfo?.status === 'PENDING' ? 'Pending Verifikasi Guide' : 'Daftar Jadi Guide'),
@@ -241,18 +264,25 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
                   <img src={review.destination?.image || 'https://via.placeholder.com/100'} alt={review.destination?.name} className="h-16 w-16 rounded-xl object-cover shrink-0 bg-gray-100" />
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="text-sm font-bold text-gray-800 truncate pr-2">{review.destination?.name || 'Destinasi'}</h3>
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${review.type === 'CULINARY' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                            {review.type === 'CULINARY' ? 'KULINER' : 'WISATA'}
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-bold text-gray-800 truncate pr-2 leading-tight">{review.destination?.name || (review.type === 'CULINARY' ? 'Tempat Kuliner' : 'Destinasi Wisata')}</h3>
+                      </div>
                       <div className="flex text-yellow-500 shrink-0">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className={`h-2.5 w-2.5 ${i < review.rating ? 'fill-yellow-500' : 'text-gray-200'}`} />
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-400 text-[10px] mb-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-[10px] mb-2">
                       <Clock className="h-2.5 w-2.5" />
-                      <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+                      <span>{new Date(review.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </div>
-                    <p className="text-[11px] text-gray-600 leading-relaxed italic">"{review.comment}"</p>
+                    <p className="text-[11px] text-gray-600 leading-relaxed italic line-clamp-2">"{review.comment}"</p>
                   </div>
                 </div>
               </div>

@@ -28,6 +28,8 @@ import BuddyPostDetailScreen from './screens/BuddyPostDetailScreen';
 import GuideDashboardScreen from './screens/GuideDashboardScreen';
 import CreatePackageScreen from './screens/CreatePackageScreen';
 import PublicProfileScreen from './screens/PublicProfileScreen';
+import { CulinaryScreen } from './screens/CulinaryScreen';
+import { CulinaryDetailScreen } from './screens/CulinaryDetailScreen';
 import BottomNav from './components/BottomNav';
 import SOSButton from './components/SOSButton';
 import TopBar from './components/TopBar';
@@ -41,6 +43,7 @@ const App: React.FC = () => {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedBuddyPostId, setSelectedBuddyPostId] = useState<string | null>(null);
   const [selectedPublicUserId, setSelectedPublicUserId] = useState<string | null>(null);
+  const [selectedCulinarySpotId, setSelectedCulinarySpotId] = useState<string | null>(null);
   const [publicProfileReturnScreen, setPublicProfileReturnScreen] = useState<AppScreen>(AppScreen.HOME);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -105,6 +108,7 @@ const App: React.FC = () => {
     setPreviousScreen(currentScreen);
     setPreviousData(navigationData);
     setNavigationData(data);
+    setSearchQuery('');
     if (screen === AppScreen.DETAIL && data) {
       setSelectedDestination(data);
     } else if (screen === AppScreen.ARTICLE_DETAIL && data) {
@@ -122,6 +126,12 @@ const App: React.FC = () => {
     } else if (screen === AppScreen.PUBLIC_PROFILE && data) {
       setSelectedPublicUserId(data);
       setPublicProfileReturnScreen(currentScreen);
+    } else if (screen === AppScreen.CULINARY_DETAIL && data) {
+      if (typeof data === 'string') {
+        setSelectedCulinarySpotId(data);
+      } else {
+        setSelectedCulinarySpotId(data.id);
+      }
     }
     setCurrentScreen(screen);
   };
@@ -137,7 +147,7 @@ const App: React.FC = () => {
       case AppScreen.HOME:
         return <HomeScreen onNavigate={handleNavigate} />;
       case AppScreen.EXPLORE:
-        return <ExploreScreen onNavigate={handleNavigate} searchQuery={searchQuery} />;
+        return <ExploreScreen onNavigate={handleNavigate} searchQuery={searchQuery} onSearch={setSearchQuery} />;
       case AppScreen.PLAN:
         return <PlanScreen onNavigate={handleNavigate} />;
       case AppScreen.TRIP_PLANNER:
@@ -240,12 +250,38 @@ const App: React.FC = () => {
             onBack={() => setCurrentScreen(AppScreen.HOME)}
           />
         ) : <HomeScreen onNavigate={handleNavigate} />;
+      case AppScreen.CULINARY_SPOTS:
+        return <CulinaryScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} searchQuery={searchQuery} onSearch={setSearchQuery} />;
+      case AppScreen.CULINARY_DETAIL:
+        return selectedCulinarySpotId ? (
+          <CulinaryDetailScreen
+            spotId={selectedCulinarySpotId}
+            onNavigate={handleNavigate}
+            onBack={() => setCurrentScreen(AppScreen.CULINARY_SPOTS)}
+          />
+        ) : <CulinaryScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
       default:
         return <HomeScreen onNavigate={handleNavigate} />;
     }
   };
 
-  if (currentScreen === AppScreen.SPLASH || currentScreen === AppScreen.LOGIN || currentScreen === AppScreen.REGISTER || currentScreen === AppScreen.CHAT || currentScreen === AppScreen.CONVERSATIONS || currentScreen === AppScreen.TOUR_PACKAGE_DETAIL || currentScreen === AppScreen.BOOKING || currentScreen === AppScreen.TRAVEL_BUDDY || currentScreen === AppScreen.CREATE_BUDDY_POST || currentScreen === AppScreen.BUDDY_POST_DETAIL || currentScreen === AppScreen.GUIDE_DASHBOARD || currentScreen === AppScreen.CREATE_PACKAGE || currentScreen === AppScreen.PUBLIC_PROFILE) {
+  const isFullScreen =
+    currentScreen === AppScreen.SPLASH ||
+    currentScreen === AppScreen.LOGIN ||
+    currentScreen === AppScreen.REGISTER ||
+    currentScreen === AppScreen.CHAT ||
+    currentScreen === AppScreen.CONVERSATIONS ||
+    currentScreen === AppScreen.TOUR_PACKAGE_DETAIL ||
+    currentScreen === AppScreen.BOOKING ||
+    currentScreen === AppScreen.TRAVEL_BUDDY ||
+    currentScreen === AppScreen.CREATE_BUDDY_POST ||
+    currentScreen === AppScreen.BUDDY_POST_DETAIL ||
+    currentScreen === AppScreen.GUIDE_DASHBOARD ||
+    currentScreen === AppScreen.CREATE_PACKAGE ||
+    currentScreen === AppScreen.PUBLIC_PROFILE;
+
+  // Render Full Screen directly (no top/bottom bars)
+  if (isFullScreen) {
     return (
       <div className="relative min-h-screen max-w-md mx-auto bg-white shadow-2xl overflow-hidden flex flex-col">
         {renderScreen()}
@@ -253,13 +289,14 @@ const App: React.FC = () => {
     );
   }
 
+  // Render Standard Screen (with top/bottom bars)
   return (
     <div className="relative min-h-screen max-w-md mx-auto bg-off-white shadow-2xl overflow-hidden flex flex-col">
-      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.TOUR_PACKAGE_DETAIL && currentScreen !== AppScreen.BOOKING && (
+      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.CULINARY_DETAIL && (
         <TopBar
           onSearch={(q) => {
             setSearchQuery(q);
-            if (q && currentScreen !== AppScreen.EXPLORE) {
+            if (q && currentScreen !== AppScreen.EXPLORE && currentScreen !== AppScreen.CULINARY_SPOTS) {
               setCurrentScreen(AppScreen.EXPLORE);
             }
           }}
@@ -270,13 +307,14 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className={`flex-1 overflow-y-auto custom-scrollbar ${currentScreen === AppScreen.DETAIL || currentScreen === AppScreen.ARTICLE_DETAIL || currentScreen === AppScreen.TOUR_PACKAGE_DETAIL || currentScreen === AppScreen.BOOKING ? '' : 'pb-32 pt-20'}`}>
+      <main className={`flex-1 overflow-y-auto custom-scrollbar ${currentScreen === AppScreen.DETAIL || currentScreen === AppScreen.ARTICLE_DETAIL || currentScreen === AppScreen.CULINARY_DETAIL ? '' : 'pb-32 pt-20'}`}>
         {renderScreen()}
       </main>
 
-      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.TOUR_PACKAGE_DETAIL && currentScreen !== AppScreen.BOOKING && (
+      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.CULINARY_DETAIL && (
         <BottomNav activeScreen={currentScreen} onNavigate={handleNavigate} />
       )}
+
 
       <SOSButton />
     </div>
