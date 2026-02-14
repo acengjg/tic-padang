@@ -125,6 +125,18 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ onNavigate }) => {
     fetchPlans();
   }, []);
 
+  const filteredPlans = React.useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return plans.filter(plan => {
+      if (!plan.date) return true;
+      const [year, month, day] = plan.date.split('-').map(Number);
+      const planDate = new Date(year, month - 1, day);
+      return planDate >= today;
+    });
+  }, [plans]);
+
   const handleToggleReminder = (planId: string, itemIdx: number, place: string, time: string) => {
     const key = `${planId}-${itemIdx}`;
     const newReminders = new Set(activeReminders);
@@ -225,8 +237,8 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ onNavigate }) => {
       </div>
 
       <div className="space-y-8 relative">
-        {plans.length > 0 ? (
-          plans.map((plan) => (
+        {filteredPlans.length > 0 ? (
+          filteredPlans.map((plan) => (
             <div key={plan.id} className="relative group/plan">
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-golden-maroon/10 p-2 rounded-lg">
