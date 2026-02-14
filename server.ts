@@ -1431,7 +1431,13 @@ app.post('/api/stories', authenticateToken, upload.array('media', 5), async (req
 
 app.get('/api/stories', async (req: any, res: Response) => {
   try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const stories = await prisma.story.findMany({
+      where: {
+        createdAt: {
+          gt: oneDayAgo
+        }
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { name: true, avatar: true } },
@@ -1443,6 +1449,7 @@ app.get('/api/stories', async (req: any, res: Response) => {
         }
       }
     });
+
 
     res.json(stories);
   } catch (error) {
@@ -2110,6 +2117,68 @@ process.on('exit', (code) => {
   console.log(`Process exited with code: ${code}`);
 });
 
+// --- STORY CLEANUP CRON ---
+const cleanupExpiredStories = async () => {
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // 1. Find expired stories with their media
+    const expiredStories = await prisma.story.findMany({
+      where: {
+        createdAt: {
+          lt: oneDayAgo
+        }
+      },
+      include: {
+        media: true
+      }
+    });
+
+    if (expiredStories.length === 0) return;
+
+    console.log(`[CLEANUP] Found ${expiredStories.length} expired stories. Deleting files and records...`);
+
+    // 2. Delete physical files
+    for (const story of expiredStories) {
+      for (const media of story.media) {
+        // url is /uploads/stories/filename
+        const filename = media.url.split('/').pop();
+        if (filename) {
+          const filepath = path.join(process.cwd(), 'uploads/stories', filename);
+          if (fs.existsSync(filepath)) {
+            try {
+              fs.unlinkSync(filepath);
+              console.log(`[CLEANUP] Deleted file: ${filename}`);
+            } catch (err) {
+              console.error(`[CLEANUP] Failed to delete file: ${filepath}`, err);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Delete records from database
+    const storyIds = expiredStories.map(s => s.id);
+    await prisma.story.deleteMany({
+      where: {
+        id: {
+          in: storyIds
+        }
+      }
+    });
+
+    console.log(`[CLEANUP] Successfully deleted ${expiredStories.length} expired stories.`);
+  } catch (error) {
+    console.error('[CLEANUP] Error during story cleanup:', error);
+  }
+};
+
+// Run cleanup every 1 hour
+setInterval(cleanupExpiredStories, 1000 * 60 * 60);
+
+// Run once on startup
+cleanupExpiredStories();
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Backend TIC-PADANG berjalan di http://0.0.0.0:${PORT}`);
 });
@@ -2121,5 +2190,3 @@ process.on('SIGTERM', () => {
   });
 });
 
-// Force keep-alive (HACK)
-setInterval(() => { }, 1000 * 60 * 60);

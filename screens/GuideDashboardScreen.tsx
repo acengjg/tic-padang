@@ -344,14 +344,7 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
                                         </div>
                                     )}
 
-                                    {booking.bookingStatus === 'CONFIRMED' && (
-                                        <button
-                                            onClick={() => window.open(`https://wa.me/${booking.user?.phone?.replace(/\D/g, '')}`, '_blank')}
-                                            className="w-full bg-green-500 text-white py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
-                                        >
-                                            <MessageCircle size={14} /> Hubungi via WhatsApp
-                                        </button>
-                                    )}
+                                    {booking.bookingStatus === 'CONFIRMED'}
                                 </div>
                             ))
                         ) : (
