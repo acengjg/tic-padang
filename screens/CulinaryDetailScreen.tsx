@@ -4,7 +4,7 @@ import {
     ChevronLeft, Star, Clock, MapPin, Share2,
     Heart, Wifi, Car, Sun, Shield, Banknote,
     Coffee, Tag, Image as ImageIcon, Utensils,
-    Info, Sparkles, Navigation, Menu, MessageSquare, CheckCircle2, X
+    Info, Sparkles, Navigation, Menu, MessageSquare, CheckCircle2, X, RefreshCw
 } from 'lucide-react';
 import { apiService } from '../client';
 import { SafeImage } from '../components/SafeImage';
@@ -26,7 +26,59 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
     const [scrollY, setScrollY] = useState(0);
     const [imageLoaded, setImageLoaded] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [isCheckingIn, setIsCheckingIn] = useState(false);
+    const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const handleCheckIn = async () => {
+        setIsCheckingIn(true);
+        try {
+            if (!navigator.geolocation) {
+                throw new Error('Geolocation tidak didukung browser ini');
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                try {
+                    const { latitude, longitude } = position.coords;
+
+                    if (!spot) {
+                        throw new Error('Data lokasi tidak tersedia. Silakan coba lagi.');
+                    }
+
+                    if (spot) {
+                        const { calculateDistance } = await import('../src/utils/geolocation');
+                        const dist = calculateDistance(latitude, longitude, spot.lat, spot.lng);
+
+                        if (dist > 100) {
+                            throw new Error(`Anda berada diluar radius (${Math.round(dist)}m). Harap mendekat ke lokasi hingga 100m.`);
+                        }
+                    }
+
+                    const { apiService } = await import('../client');
+                    await apiService.createFootprint({
+                        culinarySpotId: spot?.id,
+                        type: 'GPS_AUTO',
+                        lat: latitude,
+                        lng: longitude,
+                        note: `Mencicipi kuliner di ${spot?.name}`
+                    });
+                    setHasCheckedInToday(true);
+                    alert('Check-in berhasil! Anda mendapatkan poin.');
+                } catch (err: any) {
+                    alert(err.message || 'Gagal melakukan check-in');
+                } finally {
+                    setIsCheckingIn(false);
+                }
+            }, (err) => {
+                alert('Gagal mendapatkan lokasi GPS. Pastikan izin lokasi aktif.');
+                setIsCheckingIn(false);
+            }, { enableHighAccuracy: true });
+
+        } catch (error: any) {
+            alert(error.message);
+            setIsCheckingIn(false);
+        }
+    };
 
     useEffect(() => {
         const handleScroll = (e: Event) => {
@@ -483,19 +535,33 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
             </div>
 
             {/* Bottom Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl p-4 flex gap-3 z-50 border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl p-4 flex gap-2 z-50 border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+                <button
+                    onClick={handleCheckIn}
+                    disabled={isCheckingIn || hasCheckedInToday}
+                    className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all border ${hasCheckedInToday ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-orange-600 border-orange-100 shadow-sm'}`}
+                >
+                    {isCheckingIn ? (
+                        <RefreshCw className="h-4 w-4 animate-spin mb-1" />
+                    ) : hasCheckedInToday ? (
+                        <CheckCircle2 className="h-4 w-4 mb-1" />
+                    ) : (
+                        <MapPin className="h-4 w-4 mb-1" />
+                    )}
+                    {isCheckingIn ? 'Proses' : hasCheckedInToday ? 'Visited' : 'Check-in'}
+                </button>
                 <button
                     onClick={() => setIsFavorite(!isFavorite)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border ${isFavorite ? 'bg-red-50 text-chili-red border-chili-red/20' : 'bg-white text-gray-600 border-gray-200 shadow-sm'}`}
+                    className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all border ${isFavorite ? 'bg-red-50 text-chili-red border-chili-red/20' : 'bg-white text-gray-600 border-gray-200 shadow-sm'}`}
                 >
-                    <Heart className={`h-4 w-4 ${isFavorite ? 'fill-chili-red' : ''}`} />
-                    {isFavorite ? 'Disimpan' : 'Simpan'}
+                    <Heart className={`h-4 w-4 mb-1 ${isFavorite ? 'fill-chili-red' : ''}`} />
+                    {isFavorite ? 'Saved' : 'Love'}
                 </button>
                 <button
                     onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.name + ' ' + spot.address)}`, '_blank')}
                     className="flex-[1.5] bg-padang-green hover:bg-green-900 text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-padang-green/20 transition-all active:scale-95 group"
                 >
-                    <Navigation className="h-4 w-4" /> Navigasi Ke Sini
+                    <Navigation className="h-4 w-4" /> Navigasi
                 </button>
             </div>
         </div>

@@ -48,6 +48,98 @@ Misi time-limited untuk mendorong eksplorasi.
 
 ---
 
+### 4. **Jejak Wisata (Travel Footprint Tracker)**
+Sistem pelacakan perjalanan personal untuk mendokumentasikan, memvisualisasikan, dan membagikan jejak wisata.
+
+**Fitur:**
+
+**A. Visit Tracking**
+- **Auto Check-in**: Deteksi otomatis via GPS dalam radius 100m dari destinasi
+- **QR Code Verification**: Scan QR unik di lokasi untuk poin maksimal
+- **Manual Check-in**: Tandai kunjungan dengan konfirmasi foto
+- **Visit Data**: Timestamp, durasi, foto, rating, catatan, konteks kunjungan (solo/family/friends)
+
+**B. Journey Visualization**
+- **Interactive Map**: Peta dengan marker destinasi yang sudah dikunjungi
+- **Route Lines**: Garis menghubungkan destinasi berdasarkan urutan kronologis
+- **Heat Map**: Area paling sering dikunjungi
+- **Timeline Scrubber**: Filter perjalanan berdasarkan periode (bulan/tahun/all-time)
+- **Travel Stats Dashboard**:
+  - Total destinasi dikunjungi
+  - Total km ditempuh (estimasi routing)
+  - Kategori favorit
+  - Waktu rata-rata per kunjungan
+  - Longest streak (hari berturut-turut berkunjung)
+
+**C. Achievement System**
+- **Tiered Badges**:
+  - 🥉 Bronze Explorer (5 destinasi)
+  - 🥈 Silver Wanderer (15 destinasi)
+  - 🥇 Gold Adventurer (30 destinasi)
+  - 💎 Diamond Nomad (50 destinasi)
+  - 👑 Padang Legend (100+ destinasi)
+- **Specialized Badges**:
+  - 🏖️ Beach Hopper, 🍜 Culinary Master, 🕌 Heritage Seeker
+  - 🌄 Nature Lover, 📸 Photo Enthusiast, 🗺️ Completionist
+- **Progress Bar** untuk setiap badge dengan notifikasi mendekati unlock
+- **Badge Showcase** di profile (top 5 favorit)
+
+**D. Social Sharing**
+- **Shareable Infographic**: Auto-generate "My 2026 Padang Journey" dengan stats
+- **Compare with Friends**: Lihat jejak teman, destinasi yang pernah dikunjungi bersama
+- **Follow Journey**: User lain bisa adopt itinerary berdasarkan jejak populer
+- **Auto Story Timeline**: Compile foto kunjungan jadi travel story video dengan soundtrack lokal
+
+**E. Gamification & Rewards**
+- **Point System**:
+  - 10 poin per check-in
+  - 20 poin check-in + foto
+  - 50 poin check-in + review
+  - Bonus 100 poin untuk hidden gems (destinasi jarang dikunjungi)
+- **Voucher Redemption**: Tukar poin dengan voucher partner (hotel, restoran, travel)
+- **Seasonal Challenges**: Quest bertema (Ramadan Journey, Independence Day Quest, Year-End Escapade)
+
+**F. Integration dengan Fitur Lain**
+- Link ke **Destination Detail**, prompt **Review** setelah check-out
+- **Trip Planner** suggest destinasi berdasarkan footprint
+- **Stories** auto-tag kunjungan, **Event** track attendance
+- **Marketplace** unlock discount berdasarkan visit count
+
+**Teknologi:**
+- Geolocation API + Geofencing (battery-efficient)
+- QR Code Scanner (camera API)
+- Leaflet untuk interactive map
+- Chart.js untuk stats visualization
+- Canvas API untuk infographic generation
+
+**Nilai Tambah:** 
+- ✅ Mendorong eksplorasi aktif dengan reward system
+- ✅ Dokumentasi perjalanan yang terstruktur dan visual
+- ✅ Social proof dan inspirasi untuk wisatawan lain
+- ✅ Data-driven insights untuk operator wisata (analytics aggregate)
+- ✅ Increase retention via gamification dan achievement unlock
+
+**KPI Target:**
+- 40% MAU menggunakan check-in dalam 6 bulan
+- Average 8-10 visits/bulan per active user
+- 15% share rate untuk footprint infographic
+- 30-day retention meningkat 25% untuk users dengan footprint aktif
+
+**Implementasi Bertahap:**
+1. **Phase 1 (6-8 minggu)**: Basic check-in, visit history, simple stats, 5 badges dasar
+2. **Phase 2 (8-10 minggu)**: Interactive map, route viz, timeline, 10+ badges, poin system
+3. **Phase 3 (10-12 minggu)**: QR check-in, share infographic, leaderboard, seasonal challenges
+4. **Phase 4 (12-16 minggu)**: Auto-stories, 3D map, heat map, voucher redemption, AI suggestions
+
+**Challenges & Mitigasi:**
+- GPS drift → Geofencing + QR fallback + manual edit
+- Privacy → Default private, granular controls
+- Battery drain → NO continuous GPS, hanya saat app active
+- Spam → Cooldown 1x/hari per destinasi, GPS verification, fraud detection
+
+---
+
+
 ## 🤖 AI & Personalisasi
 
 ### 4. **AI Trip Planner (Itinerary Otomatis)**
@@ -486,10 +578,11 @@ Memberikan pengalaman "teleportasi" bagi calon wisatawan untuk merasakan atmosfe
 - **Social Tags**: Lihat review atau foto user lain yang ditempelkan secara virtual di koordinat tertentu.
 
 **3. VR Mode (Immersive Experience)**
-- **Cardboard/Headset Optimization**: Mode split-screen (stereoscopic) untuk perangkat VR mobile (Google Cardboard, VR Box).
-- **Gyroscope-Based Control**: Navigasi intuitif hanya dengan menolehkan kepala atau menggunakan tombol di VR headset.
+- **Cardboard/Headset Optimization**: Mode split-screen (stereoscopic) untuk perangkat VR mobile (Google Cardboard, VR Box) - ✅ **Implemented**
+- **Gyroscope-Based Control**: Navigasi intuitif hanya dengan menolehkan kepala atau menggunakan tombol di VR headset - ✅ **Implemented with Debug Mode**
 - **WebXR Integration**: Akses langsung via browser mobile tanpa perlu install aplikasi tambahan.
-- **Interactive UI in VR**: Menu yang melayang secara virtual (floating UI) agar user tidak perlu keluar dari mode VR.
+- **Interactive UI in VR**: Menu yang melayang secara virtual (floating UI) agar user tidak perlu keluar dari mode VR - ✅ **Basic HUD Implemented**
+- **Troubleshooting**: Jika VR tidak bergerak, gunakan tombol "Force Gyro" di layar kiri dalam mode VR. Pastikan izin sensor gerak diberikan (terutama iOS).
 
 **4. Live 360° Streaming**
 - **Event Coverage**: Siaran langsung event besar (misal: Festival Tabuik atau Pacu Jawi) dalam format 360°.

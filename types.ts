@@ -74,7 +74,9 @@ export enum AppScreen {
   CREATE_PACKAGE = 'create_package',
   PUBLIC_PROFILE = 'public_profile',
   CULINARY_SPOTS = 'culinary_spots',
-  CULINARY_DETAIL = 'culinary_detail'
+  CULINARY_DETAIL = 'culinary_detail',
+  FOOTPRINT = 'footprint',
+  BADGES = 'badges'
 }
 
 export interface TravelBuddyPost {
@@ -286,4 +288,41 @@ export interface CulinaryReview {
     name: string;
     avatar: string | null;
   };
+}
+
+export interface Footprint {
+  id: string;
+  userId: string;
+  visitDate: string;
+  lat: number;
+  lng: number;
+  type: 'GPS_AUTO' | 'QR_SCAN' | 'MANUAL';
+  note?: string;
+  pointsEarned: number;
+  destinationId?: string;
+  culinarySpotId?: string;
+  eventId?: string;
+  destination?: Destination;
+  culinarySpot?: CulinarySpot;
+  event?: Event;
+}
+
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  category: string;
+  threshold: number;
+  tier: 'BRONZE' | 'SILVER' | 'GOLD' | 'DIAMOND' | 'LEGEND';
+  unlocked?: boolean;
+}
+
+export interface FootprintStats {
+  totalVisits: number;
+  destinationsCount: number;
+  culinaryCount: number;
+  eventsCount: number;
+  totalPoints: number;
+  level: number;
 }

@@ -6,7 +6,7 @@ import CreateStoryScreen from './CreateStoryScreen';
 import {
   Star, MapPin, ArrowRight, Sun, Cloud, CloudRain,
   CloudLightning, Wind, Droplets, Clock,
-  Sparkles, Award, Bell, Thermometer, Info, Calendar, Plus, UserCheck, Users, Bookmark, Utensils
+  Sparkles, Award, Bell, Thermometer, Info, Calendar, Plus, UserCheck, Users, Bookmark, Utensils, Map
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -181,6 +181,7 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
             { label: 'Event', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100/50', screen: AppScreen.EVENTS },
             { label: 'Guide', icon: UserCheck, color: 'text-rose-600', bg: 'bg-rose-100/50', screen: AppScreen.GUIDE_MARKETPLACE },
             { label: 'Buddy', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100/50', screen: AppScreen.TRAVEL_BUDDY },
+            { label: 'Jejak', icon: Map, color: 'text-purple-600', bg: 'bg-purple-100/50', screen: AppScreen.FOOTPRINT },
           ].map((item, idx) => (
             <button
               key={idx}

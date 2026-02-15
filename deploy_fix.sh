@@ -1,7 +1,7 @@
 #!/bin/bash
 HOST="103.141.74.87"
 USER="ubuntuserver"
-PASS="Ubuntuserver!2025"
+PASS="@Marpoyan77"
 export SSHPASS=$PASS
 
 echo "Deploying Fixed Server to VPS..."

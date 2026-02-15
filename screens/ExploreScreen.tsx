@@ -195,6 +195,8 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isSortingByDistance, setIsSortingByDistance] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [manualLocationName, setManualLocationName] = useState<string | null>(null);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -272,6 +274,12 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
 
   const requestLocation = () => {
     return new Promise<{ lat: number, lng: number }>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        setLocationError("Perangkat tidak mendukung lokasi.");
+        setTimeout(() => setLocationError(null), 3000);
+        return reject(new Error("Geolocation not supported"));
+      }
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -279,9 +287,31 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
           resolve(loc);
         },
         (err) => {
-          setLocationError("Izin lokasi diperlukan.");
-          setTimeout(() => setLocationError(null), 3000);
+          let errorMessage = "Gagal mengambil lokasi.";
+          switch (err.code) {
+            case err.PERMISSION_DENIED:
+              errorMessage = "Izin lokasi ditolak. Cek pengaturan browser.";
+              break;
+            case err.POSITION_UNAVAILABLE:
+              errorMessage = "Informasi lokasi tidak tersedia.";
+              break;
+            case err.TIMEOUT:
+              errorMessage = "Waktu permintaan lokasi habis.";
+              break;
+          }
+
+          if (!window.isSecureContext) {
+            errorMessage += " (Wajib HTTPS)";
+          }
+
+          setLocationError(errorMessage);
+          setTimeout(() => setLocationError(null), 4000);
           reject(err);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
     });
@@ -293,10 +323,34 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
         try {
           await requestLocation();
           setIsSortingByDistance(true);
-        } catch (e) { }
+        } catch (e) {
+          // If GPS fails, offer manual selection
+          setShowLocationPicker(true);
+        }
       } else setIsSortingByDistance(true);
-    } else setIsSortingByDistance(false);
+    } else {
+      setIsSortingByDistance(false);
+      // Optional: Reset manual location if they toggle off, or keep it?
+      // Let's keep it for now unless explicitly cleared, but logically toggle off means stop sorting
+    }
   };
+
+  const handleManualLocationSelect = (loc: { lat: number; lng: number; name: string }) => {
+    setUserLocation({ lat: loc.lat, lng: loc.lng });
+    setManualLocationName(loc.name);
+    setIsSortingByDistance(true);
+    setShowLocationPicker(false);
+  };
+
+  // Predefined locations for manual picker
+  const MANUAL_LOCATIONS = [
+    { name: 'Padang Pusat (Jam Gadang/Pasar)', lat: -0.9471, lng: 100.3543 },
+    { name: 'Padang Barat (Pantai Padang)', lat: -0.9242, lng: 100.3625 },
+    { name: 'Padang Selatan (Teluk Bayur)', lat: -0.9995, lng: 100.3855 },
+    { name: 'Padang Utara (UNP/Basko)', lat: -0.8932, lng: 100.3514 },
+    { name: 'Koto Tangah (Bandara)', lat: -0.8500, lng: 100.3300 },
+    { name: 'Bungus (Pantai Air Manis)', lat: -1.0333, lng: 100.3955 },
+  ];
 
   const handleResetFilter = () => {
     setActiveTab('Semua');
@@ -382,7 +436,7 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
           </div>
           <div className="flex gap-2 mb-1">
             <button onClick={handleToggleDistanceSort} className={`h-11 px-4 rounded-2xl border flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${isSortingByDistance ? 'bg-chili-red text-white border-chili-red shadow-lg shadow-chili-red/20' : 'bg-white text-gray-400 border-gray-100 shadow-sm'}`}>
-              <LocateFixed className={`h-3.5 w-3.5 ${isSortingByDistance ? 'animate-pulse' : ''}`} /> Terdekat
+              <LocateFixed className={`h-3.5 w-3.5 ${isSortingByDistance ? 'animate-pulse' : ''}`} /> {manualLocationName ? 'Manual' : 'Terdekat'}
             </button>
             <button onClick={() => { setIsMapView(!isMapView); setPullDistance(0); }} className={`h-11 w-11 rounded-2xl border flex items-center justify-center transition-all active:scale-95 shadow-sm ${isMapView ? 'bg-padang-green text-white border-padang-green shadow-lg shadow-padang-green/20' : 'bg-white text-padang-green border-gray-100'}`}>
               {isMapView ? <List className="h-5 w-5" /> : <Map className="h-5 w-5" />}
@@ -555,6 +609,51 @@ const ExploreScreen: React.FC<ExploreScreenProps> = ({ onNavigate, searchQuery =
           scrollbar-width: none;
         }
       `}</style>
+
+      {/* Manual Location Picker Modal */}
+      {showLocationPicker && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-[32px] w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="p-6 pb-2">
+              <div className="flex justify-between items-start mb-2">
+                <div className="bg-red-50 p-3 rounded-full">
+                  <MapPin className="h-6 w-6 text-chili-red" />
+                </div>
+                <button onClick={() => setShowLocationPicker(false)} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100">
+                  <XCircle className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+              <h3 className="text-xl font-black text-gray-800 mb-1">Gagal Mendeteksi Lokasi</h3>
+              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                Sepertinya GPS Anda tidak aktif atau izin ditolak. Silakan pilih area terdekat Anda secara manual:
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 max-h-[50vh] overflow-y-auto space-y-2">
+              {MANUAL_LOCATIONS.map((loc) => (
+                <button
+                  key={loc.name}
+                  onClick={() => handleManualLocationSelect(loc)}
+                  className="w-full bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.98] transition-all hover:border-padang-green"
+                >
+                  <span className="text-sm font-bold text-gray-700 group-hover:text-padang-green text-left">{loc.name}</span>
+                  <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-padang-green" />
+                </button>
+              ))}
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setShowLocationPicker(false);
+                  requestLocation().catch(() => { }); // Retry GPS
+                }}
+                className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-xs font-bold text-gray-500 uppercase tracking-widest hover:bg-gray-50 hover:border-gray-400 hover:text-gray-600 transition-all"
+              >
+                Coba GPS Lagi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

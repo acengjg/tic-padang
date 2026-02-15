@@ -7,7 +7,7 @@ LOCAL_PASS="12345678"
 
 VPS_HOST="103.141.74.87"
 VPS_USER="ubuntuserver"
-VPS_PASS="Ubuntuserver!2025"
+VPS_PASS="@Marpoyan77"
 VPS_DB="tic_db"
 VPS_DB_USER="tic_user"
 VPS_DB_PASS="tic_password"

@@ -596,5 +596,50 @@ export const apiService = {
       }
     }
     return await response.json();
+  },
+
+  // Footprints & Badges
+  createFootprint: async (data: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/footprints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Gagal mencatat jejak');
+    }
+    return await response.json();
+  },
+
+  getFootprints: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/footprints`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil jejak');
+    return await response.json();
+  },
+
+  getBadges: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/badges`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil data lencana');
+    return await response.json();
+  },
+
+  getFootprintStats: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/footprints/stats`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil statistik');
+    return await response.json();
   }
 };

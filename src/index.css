@@ -43,3 +43,10 @@ h6 {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Leaflet Fixes */
+.leaflet-container {
+    height: 100%;
+    width: 100%;
+    z-index: 10;
+}

@@ -15,6 +15,9 @@ export default defineConfig(({ mode }) => {
           secure: false,
         },
       },
+      watch: {
+        ignored: ['**/android/**', '**/ios/**', '**/.git/**', '**/node_modules/**'],
+      },
     },
     plugins: [react()],
     define: {

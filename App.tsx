@@ -30,6 +30,9 @@ import CreatePackageScreen from './screens/CreatePackageScreen';
 import PublicProfileScreen from './screens/PublicProfileScreen';
 import { CulinaryScreen } from './screens/CulinaryScreen';
 import { CulinaryDetailScreen } from './screens/CulinaryDetailScreen';
+import FootprintScreen from './screens/FootprintScreen';
+import BadgesScreen from './screens/BadgesScreen';
+import JourneyMap from './components/JourneyMap';
 import BottomNav from './components/BottomNav';
 import SOSButton from './components/SOSButton';
 import TopBar from './components/TopBar';
@@ -260,6 +263,10 @@ const App: React.FC = () => {
             onBack={() => setCurrentScreen(AppScreen.CULINARY_SPOTS)}
           />
         ) : <CulinaryScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
+      case AppScreen.FOOTPRINT:
+        return <FootprintScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.PROFILE)} />;
+      case AppScreen.BADGES:
+        return <BadgesScreen onBack={() => setCurrentScreen(AppScreen.FOOTPRINT)} />;
       default:
         return <HomeScreen onNavigate={handleNavigate} />;
     }

@@ -2097,6 +2097,165 @@ app.get('/api/culinary-spots/:id', async (req: Request, res: Response) => {
 
 
 // --- SERVE FRONTEND (PRODUCTION) ---
+
+// --- FOOTPRINT & BADGES LOGIC ---
+
+const checkAndUnlockBadges = async (userId: string) => {
+  try {
+    const footprints = await prisma.footprint.findMany({ where: { userId } });
+    const allBadges = await prisma.badge.findMany();
+    const userBadges = await prisma.userBadge.findMany({ where: { userId } });
+
+    const unlockedBadgeIds = userBadges.map(ub => ub.badgeId);
+
+    for (const badge of allBadges) {
+      if (unlockedBadgeIds.includes(badge.id)) continue;
+
+      let count = 0;
+      if (badge.category === 'EXPLORER') {
+        const destIds = new Set(footprints.filter(f => f.destinationId).map(f => f.destinationId));
+        count = destIds.size;
+      } else if (badge.category === 'CULINARY') {
+        const spotIds = new Set(footprints.filter(f => f.culinarySpotId).map(f => f.culinarySpotId));
+        count = spotIds.size;
+      } else if (badge.category === 'NATURE') {
+        const natureDests = await prisma.destination.findMany({ where: { category: 'Nature' }, select: { id: true } });
+        const natureIds = natureDests.map(nd => nd.id);
+        const visitedNatureIds = new Set(footprints.filter(f => f.destinationId && natureIds.includes(f.destinationId)).map(f => f.destinationId));
+        count = visitedNatureIds.size;
+      } else if (badge.category === 'CULTURAL') {
+        const culturalDests = await prisma.destination.findMany({ where: { category: 'Cultural' }, select: { id: true } });
+        const culturalIds = culturalDests.map(cd => cd.id);
+        const visitedCulturalIds = new Set(footprints.filter(f => f.destinationId && culturalIds.includes(f.destinationId)).map(f => f.destinationId));
+        count = visitedCulturalIds.size;
+      }
+
+      if (count >= badge.threshold) {
+        await prisma.userBadge.create({
+          data: {
+            userId,
+            badgeId: badge.id
+          }
+        });
+        console.log(`User ${userId} unlocked badge: ${badge.name}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error checking badges:', error);
+  }
+};
+
+app.post('/api/footprints', authenticateToken, async (req: any, res: Response) => {
+  const { destinationId, culinarySpotId, eventId, type, note, lat, lng, context } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Check for duplicate check-in at same place same day (basic spam protection)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const existing = await prisma.footprint.findFirst({
+      where: {
+        userId,
+        destinationId,
+        culinarySpotId,
+        eventId,
+        visitDate: { gte: today }
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'Anda sudah melakukan check-in di tempat ini hari ini.' });
+    }
+
+    const footprint = await prisma.footprint.create({
+      data: {
+        userId,
+        destinationId,
+        culinarySpotId,
+        eventId,
+        type: type || 'MANUAL',
+        note,
+        lat: lat ? Number(lat) : 0,
+        lng: lng ? Number(lng) : 0,
+        context,
+        pointsEarned: type === 'QR_CODE' ? 50 : (type === 'GPS_AUTO' ? 30 : 10)
+      }
+    });
+
+    // Award points to user
+    await prisma.user.update({
+      where: { id: userId },
+      data: { points: { increment: footprint.pointsEarned } }
+    });
+
+    // Check for badges
+    await checkAndUnlockBadges(userId);
+
+    res.status(201).json(footprint);
+  } catch (error) {
+    console.error('Create Footprint Error:', error);
+    res.status(500).json({ error: 'Gagal mencatat jejak wisata' });
+  }
+});
+
+app.get('/api/footprints', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const footprints = await prisma.footprint.findMany({
+      where: { userId: req.user.id },
+      include: {
+        destination: true,
+        culinarySpot: true,
+        event: true
+      },
+      orderBy: { visitDate: 'desc' }
+    });
+    res.json(footprints);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil riwayat jejak' });
+  }
+});
+
+app.get('/api/badges', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const allBadges = await prisma.badge.findMany();
+    const userBadges = await prisma.userBadge.findMany({
+      where: { userId: req.user.id }
+    });
+
+    const unlockedIds = userBadges.map(ub => ub.badgeId);
+    const result = allBadges.map(b => ({
+      ...b,
+      unlocked: unlockedIds.includes(b.id)
+    }));
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data lencana' });
+  }
+});
+
+app.get('/api/footprints/stats', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const userId = req.user.id;
+    const footprints = await prisma.footprint.findMany({ where: { userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    const stats = {
+      totalVisits: footprints.length,
+      destinationsCount: new Set(footprints.filter(f => f.destinationId).map(f => f.destinationId)).size,
+      culinaryCount: new Set(footprints.filter(f => f.culinarySpotId).map(f => f.culinarySpotId)).size,
+      eventsCount: new Set(footprints.filter(f => f.eventId).map(f => f.eventId)).size,
+      totalPoints: user?.points || 0,
+      level: user?.level || 1
+    };
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil statistik' });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'dist')));
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not Found' });

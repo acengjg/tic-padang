@@ -27,6 +27,7 @@ model Destination {
   updatedAt       DateTime @updatedAt
   reviews         Review[]
   buddyPosts      TravelBuddyPost[]
+  footprints      Footprint[]
 }
 
 model Promotion {
@@ -48,6 +49,7 @@ model Event {
   description String
   price       String?
   createdAt   DateTime @default(now())
+  footprints  Footprint[]
 }
 
 model Article {
@@ -113,6 +115,8 @@ model User {
   plans     Plan[]
   reviews   Review[]
   comments  Comment[]
+  footprints Footprint[]
+  badges    UserBadge[]
   
   // Story Relations
   stories       Story[]
@@ -466,6 +470,7 @@ model CulinarySpot {
   updatedAt   DateTime @updatedAt
 
   reviews     CulinaryReview[]
+  footprints  Footprint[]
 }
 
 model CulinaryReview {
@@ -482,4 +487,68 @@ model CulinaryReview {
 
   spot        CulinarySpot @relation(fields: [spotId], references: [id])
   user        User         @relation(fields: [userId], references: [id])
+}
+
+model Footprint {
+  id              String      @id @default(cuid())
+  userId          String
+  destinationId   String?
+  culinarySpotId  String?
+  eventId         String?
+  type            VisitType   @default(MANUAL)
+  visitDate       DateTime    @default(now())
+  duration        Int?        // In minutes
+  photos          String[]
+  rating          Float?
+  note            String?
+  context         String?     // solo, family, friends, etc.
+  lat             Float       // Captured location
+  lng             Float
+  pointsEarned    Int         @default(0)
+
+  user            User        @relation(fields: [userId], references: [id])
+  destination     Destination? @relation(fields: [destinationId], references: [id])
+  culinarySpot    CulinarySpot? @relation(fields: [culinarySpotId], references: [id])
+  event           Event?      @relation(fields: [eventId], references: [id])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+enum VisitType {
+  GPS_AUTO
+  QR_CODE
+  MANUAL
+}
+
+model Badge {
+  id              String      @id @default(cuid())
+  name            String
+  description     String
+  image           String
+  category        String      // EXPLORER, CULINARY, NATURE, etc.
+  threshold       Int         // e.g., 5 for 5 visits
+  tier            BadgeTier   @default(BRONZE)
+  
+  users           UserBadge[]
+  createdAt       DateTime    @default(now())
+}
+
+enum BadgeTier {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+  LEGEND
+}
+
+model UserBadge {
+  id              String      @id @default(cuid())
+  userId          String
+  badgeId         String
+  unlockedAt      DateTime    @default(now())
+  
+  user            User        @relation(fields: [userId], references: [id])
+  badge           Badge       @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
 }

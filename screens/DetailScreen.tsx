@@ -151,7 +151,59 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
   const [newReviewComment, setNewReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showEnhancedTour, setShowEnhancedTour] = useState(false);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleCheckIn = async () => {
+    setIsCheckingIn(true);
+    try {
+      if (!navigator.geolocation) {
+        throw new Error('Geolocation tidak didukung browser ini');
+      }
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+
+          // Import calculateDistance
+          const { calculateDistance } = await import('../src/utils/geolocation');
+          const dist = calculateDistance(
+            latitude,
+            longitude,
+            destination.coordinates.lat,
+            destination.coordinates.lng
+          );
+
+          if (dist > 100) {
+            throw new Error(`Anda berada di luar radius lokasi (${Math.round(dist)}m). Harap mendekat hingga 100m.`);
+          }
+
+          const { apiService } = await import('../client');
+          await apiService.createFootprint({
+            destinationId: destination.id,
+            type: 'GPS_AUTO',
+            lat: latitude,
+            lng: longitude,
+            note: `Berkunjung ke ${destination.name}`
+          });
+          setHasCheckedInToday(true);
+          alert('Check-in berhasil! Anda mendapatkan poin.');
+        } catch (err: any) {
+          alert(err.message || 'Gagal melakukan check-in');
+        } finally {
+          setIsCheckingIn(false);
+        }
+      }, (err) => {
+        alert('Gagal mendapatkan lokasi GPS. Pastikan izin lokasi aktif.');
+        setIsCheckingIn(false);
+      }, { enableHighAccuracy: true });
+
+    } catch (error: any) {
+      alert(error.message);
+      setIsCheckingIn(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'ulasan') {
@@ -517,13 +569,27 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl p-4 flex gap-3 z-50 border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        <button onClick={handleFavorite} className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border ${isFavorite ? 'bg-red-50 text-chili-red border-chili-red/20' : 'bg-white text-gray-600 border-gray-200 shadow-sm'}`}>
-          <Heart className={`h-4 w-4 ${isFavorite ? 'fill-chili-red' : ''}`} />
-          {isFavorite ? 'Disimpan' : 'Simpan'}
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl p-4 flex gap-2 z-50 border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+        <button
+          onClick={handleCheckIn}
+          disabled={isCheckingIn || hasCheckedInToday}
+          className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all border ${hasCheckedInToday ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-indigo-600 border-indigo-100 shadow-sm'}`}
+        >
+          {isCheckingIn ? (
+            <RefreshCw className="h-4 w-4 animate-spin mb-1" />
+          ) : hasCheckedInToday ? (
+            <CheckCircle2 className="h-4 w-4 mb-1" />
+          ) : (
+            <MapPin className="h-4 w-4 mb-1" />
+          )}
+          {isCheckingIn ? 'Memproses' : hasCheckedInToday ? 'Checked-in' : 'Check-in'}
+        </button>
+        <button onClick={handleFavorite} className={`flex-1 flex flex-col items-center justify-center py-2 rounded-2xl font-black text-[9px] uppercase tracking-widest transition-all border ${isFavorite ? 'bg-red-50 text-chili-red border-chili-red/20' : 'bg-white text-gray-600 border-gray-200 shadow-sm'}`}>
+          <Heart className={`h-4 w-4 mb-1 ${isFavorite ? 'fill-chili-red' : ''}`} />
+          {isFavorite ? 'Disimpan' : 'Mancek'}
         </button>
         <button onClick={openInGoogleMaps} className="flex-[1.5] bg-padang-green hover:bg-green-900 text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-padang-green/20 transition-all active:scale-95 group">
-          <Navigation className="h-4 w-4" /> Navigasi Ke Sini
+          <Navigation className="h-4 w-4" /> Navigasi
         </button>
       </div>
       {showEnhancedTour && (

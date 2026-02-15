@@ -566,6 +566,48 @@ const AdminApp: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'users' | 'destinations' | 'events' | 'promotions' | 'articles' | 'guides' | 'culinary'>('users');
     const [items, setItems] = useState<any[]>([]);
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Filter Logic
+    const filteredItems = items.filter(item => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+
+        if (activeTab === 'users') {
+            return (item.name?.toLowerCase().includes(query) ||
+                item.email?.toLowerCase().includes(query) ||
+                item.role?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'destinations') {
+            return (item.name?.toLowerCase().includes(query) ||
+                item.location?.toLowerCase().includes(query) ||
+                item.category?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'culinary') {
+            return (item.name?.toLowerCase().includes(query) ||
+                item.address?.toLowerCase().includes(query) ||
+                item.category?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'events') {
+            return (item.name?.toLowerCase().includes(query) ||
+                item.location?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'promotions') {
+            return (item.title?.toLowerCase().includes(query) ||
+                item.provider?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'articles') {
+            return (item.title?.toLowerCase().includes(query) ||
+                item.author?.toLowerCase().includes(query) ||
+                item.category?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'guides') {
+            return (item.user?.name?.toLowerCase().includes(query) ||
+                item.user?.email?.toLowerCase().includes(query) ||
+                item.status?.toLowerCase().includes(query));
+        }
+        return true;
+    });
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -867,13 +909,26 @@ const AdminApp: React.FC = () => {
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">TIC-PADANG Admin Control Center</p>
                     </div>
-                    <button
-                        onClick={() => handleOpenModal()}
-                        disabled={activeTab === 'guides'}
-                        className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
-                    >
-                        <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'culinary' ? 'Tempat Kuliner' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : 'Data'}
-                    </button>
+
+                    <div className="flex gap-4">
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Cari data..."
+                                className="pl-12 pr-6 py-4 rounded-2xl border border-gray-100 bg-white focus:ring-4 focus:ring-padang-green/5 outline-none shadow-sm w-64 transition-all"
+                            />
+                        </div>
+                        <button
+                            onClick={() => handleOpenModal()}
+                            disabled={activeTab === 'guides'}
+                            className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
+                        >
+                            <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'culinary' ? 'Tempat Kuliner' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : 'Data'}
+                        </button>
+                    </div>
                 </header>
 
                 <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
@@ -893,13 +948,13 @@ const AdminApp: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {items.length === 0 ? (
+                            {filteredItems.length === 0 ? (
                                 <tr>
                                     <td colSpan={3} className="px-8 py-20 text-center text-gray-400 font-bold italic">
-                                        Tidak ada data untuk {activeTab}
+                                        Tidak ada data untuk {activeTab} {searchQuery && ` dengan kata kunci "${searchQuery}"`}
                                     </td>
                                 </tr>
-                            ) : items.map((item) => (
+                            ) : filteredItems.map((item) => (
                                 <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-4">

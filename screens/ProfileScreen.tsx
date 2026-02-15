@@ -15,6 +15,7 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [footprints, setFootprints] = useState<any[]>([]);
   const [showReviews, setShowReviews] = useState(false);
   const [bookings, setBookings] = useState<any[]>([]);
   const [showBookings, setShowBookings] = useState(initialShowBookings || false);
@@ -23,8 +24,12 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await apiService.getProfile();
-        setProfile(data);
+        const [profileData, footprintData] = await Promise.all([
+          apiService.getProfile(),
+          apiService.getFootprints()
+        ]);
+        setProfile(profileData);
+        setFootprints(footprintData);
         const guideData = await apiService.checkGuideStatus();
         setGuideInfo(guideData);
       } catch (error) {
@@ -91,7 +96,7 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
   const menuItems = [
     { icon: Bookmark, label: t.profile.my_bookings, count: String(bookings.length), action: () => setShowBookings(true) },
     { icon: Heart, label: t.profile.my_favorites, count: '12' },
-    { icon: Map, label: t.profile.travel_history, count: '24' },
+    { icon: Map, label: t.profile.travel_history, count: String(footprints.length), action: () => onNavigate && onNavigate(AppScreen.FOOTPRINT) },
     {
       icon: MessageSquare,
       label: t.profile.review_history,
