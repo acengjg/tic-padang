@@ -241,28 +241,30 @@ const HotspotPicker: React.FC<{
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Convert screen coordinates to pitch and yaw
-        const coords = viewerInstance.current.hottospotLocation(x, y);
-        if (!coords) {
-            console.warn("Could not get hotspot location from click coordinates.");
-            return;
-        }
-
-        const newHotspot = {
-            pitch: coords.pitch,
-            yaw: coords.yaw,
-            type: 'info',
-            text: 'Hotspot Baru (Klik)',
-            description: 'Tuliskan informasi detail di sini...'
-        };
-
-        const updated = [...hotspots, newHotspot];
-        onChange(updated);
-
+        // Convert screen coordinates to pitch and yaw using mouseEventToCoords
         try {
+            const coords = viewerInstance.current.mouseEventToCoords(e.nativeEvent);
+            if (!coords || !Array.isArray(coords)) {
+                console.warn("Could not get hotspot location from click coordinates.");
+                return;
+            }
+
+            const [pitch, yaw] = coords;
+
+            const newHotspot = {
+                pitch: pitch,
+                yaw: yaw,
+                type: 'info',
+                text: 'Hotspot Baru (Klik)',
+                description: 'Tuliskan informasi detail di sini...'
+            };
+
+            const updated = [...hotspots, newHotspot];
+            onChange(updated);
+
             viewerInstance.current.addHotSpot(newHotspot);
-        } catch (e) {
-            console.error("Error adding hotspot live from click:", e);
+        } catch (err) {
+            console.error("Error adding hotspot live from click:", err);
             setTimeout(initViewer, 100);
         }
     };
@@ -347,7 +349,7 @@ const HotspotPicker: React.FC<{
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
                                             <span className="h-5 w-5 bg-padang-green text-white text-[9px] font-black flex items-center justify-center rounded-lg shadow-md shadow-padang-green/20">{i + 1}</span>
-                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter italic">P:{h.pitch.toFixed(1)} Y:{h.yaw.toFixed(1)}</span>
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter italic">P:{(h.pitch || 0).toFixed(1)} Y:{(h.yaw || 0).toFixed(1)}</span>
                                         </div>
                                         <button type="button" onClick={() => removeHotspot(i)} className="text-gray-300 hover:text-chili-red transition-colors p-1">
                                             <Trash2 size={14} />
