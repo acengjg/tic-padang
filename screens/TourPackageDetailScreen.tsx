@@ -7,6 +7,8 @@ import {
 import { apiService } from '../client';
 import YouTubePlayer from '../components/YouTubePlayer';
 import { TourPackage, AppScreen } from '../types';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface TourPackageDetailScreenProps {
     packageId: string;
@@ -20,20 +22,20 @@ const LeafletMap: React.FC<{ lat: number; lng: number; popupContent: string }> =
     const leafletRef = useRef<any>(null);
 
     useEffect(() => {
-        const checkForLeaflet = setInterval(() => {
-            if ((window as any).L && mapRef.current && !leafletRef.current) {
-                clearInterval(checkForLeaflet);
-                const L = (window as any).L;
+        const initMap = () => {
+            if (mapRef.current && !leafletRef.current) {
+                if (mapRef.current.clientHeight === 0) {
+                    setTimeout(initMap, 100);
+                    return;
+                }
 
                 // Fix icon path for Leaflet
-                if (L.Icon.Default.prototype._getIconUrl) {
-                    delete L.Icon.Default.prototype._getIconUrl;
-                    L.Icon.Default.mergeOptions({
-                        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-                        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-                    });
-                }
+                delete (L.Icon.Default.prototype as any)._getIconUrl;
+                L.Icon.Default.mergeOptions({
+                    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                });
 
                 const map = L.map(mapRef.current).setView([lat, lng], 15);
                 leafletRef.current = map;
@@ -47,13 +49,25 @@ const LeafletMap: React.FC<{ lat: number; lng: number; popupContent: string }> =
                     .bindPopup(popupContent)
                     .openPopup();
 
-                setTimeout(() => map.invalidateSize(), 300);
-                setTimeout(() => map.invalidateSize(), 1200);
+                setTimeout(() => map.invalidateSize(), 200);
             }
-        }, 100);
+        };
+
+        const timeoutId = setTimeout(initMap, 100);
+
+        let resizeObserver: ResizeObserver | null = null;
+        if (mapRef.current) {
+            resizeObserver = new ResizeObserver(() => {
+                if (leafletRef.current) {
+                    leafletRef.current.invalidateSize();
+                }
+            });
+            resizeObserver.observe(mapRef.current);
+        }
 
         return () => {
-            clearInterval(checkForLeaflet);
+            clearTimeout(timeoutId);
+            if (resizeObserver) resizeObserver.disconnect();
             if (leafletRef.current) {
                 leafletRef.current.remove();
                 leafletRef.current = null;
@@ -61,7 +75,18 @@ const LeafletMap: React.FC<{ lat: number; lng: number; popupContent: string }> =
         };
     }, [lat, lng, popupContent]);
 
-    return <div ref={mapRef} className="w-full h-full z-0" />;
+    return (
+        <div className="w-full h-[320px] relative meeting-point-map-container">
+            <style>{`
+                .meeting-point-map-container .leaflet-container {
+                    height: 100% !important;
+                    width: 100% !important;
+                    min-height: 320px;
+                }
+            `}</style>
+            <div ref={mapRef} className="w-full h-full z-0" style={{ height: '320px', minHeight: '320px' }} />
+        </div>
+    );
 };
 
 const TourPackageDetailScreen: React.FC<TourPackageDetailScreenProps> = ({ packageId, onBack, onNavigate, hideBookingBar }) => {
@@ -202,7 +227,7 @@ const TourPackageDetailScreen: React.FC<TourPackageDetailScreenProps> = ({ packa
                                     <p className="text-xs font-bold text-gray-500">{pkg.meetingPoint}</p>
                                 </div>
                             </div>
-                            <div className="h-48 bg-gray-100 rounded-3xl overflow-hidden relative border border-gray-100">
+                            <div className="h-[320px] bg-gray-100 rounded-3xl overflow-hidden relative border border-gray-100 meeting-point-map-container" style={{ height: '320px', minHeight: '320px' }}>
                                 {pkg.meetingPointLat && pkg.meetingPointLng ? (
                                     <LeafletMap
                                         lat={pkg.meetingPointLat}

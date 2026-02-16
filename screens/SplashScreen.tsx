@@ -4,12 +4,8 @@ import React from 'react';
 const SplashScreen: React.FC = () => {
   return (
     <div className="fixed inset-0 bg-padang-green flex flex-col items-center justify-center z-[100] max-w-md mx-auto">
-      <div className="relative animate-pulse">
-        {/* Silhouette of Rumah Gadang (SVG Icon) */}
-        <svg viewBox="0 0 100 60" className="h-24 w-36 fill-white drop-shadow-lg mb-6">
-          <path d="M0 40 L20 20 L25 25 L50 0 L75 25 L80 20 L100 40 L100 60 L0 60 Z" />
-          <rect x="42" y="45" width="16" height="15" fill="#FFD700" />
-        </svg>
+      <div className="relative animate-in zoom-in duration-700">
+        <img src="/logo.png" alt="TIC Digital Padang" className="h-40 w-40 object-contain drop-shadow-2xl mb-8" />
       </div>
       <h1 className="text-3xl font-bold text-white tracking-wider mb-2">TIC-PADANG</h1>
       <p className="text-white/80 text-sm font-medium italic">Tourism Information Center Padang</p>

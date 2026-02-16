@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Save, Plus, Trash2, MapPin, Clock, Users, Info, X, Loader2, Map as MapIcon } from 'lucide-react';
 import { apiService, getProxiedImageUrl } from '../client';
 import { AppScreen } from '../types';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, lng: number) => void }> = ({ lat, lng, onChange }) => {
     const mapRef = useRef<HTMLDivElement>(null);
@@ -9,20 +11,20 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
     const markerRef = useRef<any>(null);
 
     useEffect(() => {
-        const checkForLeaflet = setInterval(() => {
-            if ((window as any).L && mapRef.current && !leafletRef.current) {
-                clearInterval(checkForLeaflet);
-                const L = (window as any).L;
+        const initMap = () => {
+            if (mapRef.current && !leafletRef.current) {
+                if (mapRef.current.clientHeight === 0) {
+                    setTimeout(initMap, 100);
+                    return;
+                }
 
                 // Fix icon path for Leaflet
-                if (L.Icon.Default.prototype._getIconUrl) {
-                    delete L.Icon.Default.prototype._getIconUrl;
-                    L.Icon.Default.mergeOptions({
-                        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-                        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-                    });
-                }
+                delete (L.Icon.Default.prototype as any)._getIconUrl;
+                L.Icon.Default.mergeOptions({
+                    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                });
 
                 const map = L.map(mapRef.current).setView([lat, lng], 15);
                 leafletRef.current = map;
@@ -46,13 +48,25 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
                     onChange(lat, lng);
                 });
 
-                setTimeout(() => map.invalidateSize(), 300);
-                setTimeout(() => map.invalidateSize(), 1200);
+                setTimeout(() => map.invalidateSize(), 200);
             }
-        }, 100);
+        };
+
+        const timeoutId = setTimeout(initMap, 100);
+
+        let resizeObserver: ResizeObserver | null = null;
+        if (mapRef.current) {
+            resizeObserver = new ResizeObserver(() => {
+                if (leafletRef.current) {
+                    leafletRef.current.invalidateSize();
+                }
+            });
+            resizeObserver.observe(mapRef.current);
+        }
 
         return () => {
-            clearInterval(checkForLeaflet);
+            clearTimeout(timeoutId);
+            if (resizeObserver) resizeObserver.disconnect();
             if (leafletRef.current) {
                 leafletRef.current.remove();
                 leafletRef.current = null;
@@ -72,7 +86,39 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
 
     return (
         <div className="space-y-4">
-            <div ref={mapRef} className="h-64 w-full rounded-[32px] border border-gray-100 overflow-hidden shadow-inner z-0 relative bg-gray-100" />
+            <style>{`
+                .meeting-point-map-container .leaflet-container {
+                    height: 100% !important;
+                    width: 100% !important;
+                    min-height: 320px;
+                }
+            `}</style>
+            <div className="relative meeting-point-map-container">
+                <div ref={mapRef} className="h-[320px] w-full rounded-[32px] border border-gray-100 overflow-hidden shadow-inner z-0 relative bg-gray-100" style={{ height: '320px', minHeight: '320px' }} />
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    const { latitude, longitude } = position.coords;
+                                    onChange(latitude, longitude);
+                                },
+                                (error) => {
+                                    alert('Gagal mendapatkan lokasi: ' + error.message);
+                                },
+                                { enableHighAccuracy: true }
+                            );
+                        } else {
+                            alert('Geolocation tidak didukung browser ini.');
+                        }
+                    }}
+                    className="absolute bottom-4 right-4 bg-white p-3 rounded-2xl shadow-lg border border-gray-100 z-[10] hover:bg-gray-50 transition-all active:scale-95"
+                    title="Gunakan Lokasi Saya"
+                >
+                    <MapPin className="h-5 w-5 text-blue-500" />
+                </button>
+            </div>
             <div className="flex gap-4">
                 <div className="flex-1 space-y-1">
                     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Latitude</label>

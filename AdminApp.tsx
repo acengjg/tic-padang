@@ -495,11 +495,13 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
     }, [onChange]);
 
     React.useEffect(() => {
-        const checkForLeaflet = setInterval(() => {
-            if ((window as any).L && mapRef.current && !leafletRef.current) {
-                clearInterval(checkForLeaflet);
-
-                const L = (window as any).L;
+        const initMap = () => {
+            const L = (window as any).L;
+            if (L && mapRef.current && !leafletRef.current) {
+                if (mapRef.current.clientHeight === 0) {
+                    setTimeout(initMap, 100);
+                    return;
+                }
 
                 // Fix icon path for Leaflet
                 delete L.Icon.Default.prototype._getIconUrl;
@@ -531,18 +533,28 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
                     onChangeRef.current(lat, lng);
                 });
 
-                // Invalidte size to fix rendering in modal
-                setTimeout(() => {
-                    map.invalidateSize();
-                }, 300);
-                setTimeout(() => {
-                    map.invalidateSize();
-                }, 1200);
+                setTimeout(() => map.invalidateSize(), 300);
+            } else if (!(window as any).L) {
+                // If L is not available yet, wait
+                setTimeout(initMap, 100);
             }
-        }, 100);
+        };
+
+        const timeoutId = setTimeout(initMap, 100);
+
+        let resizeObserver: ResizeObserver | null = null;
+        if (mapRef.current) {
+            resizeObserver = new ResizeObserver(() => {
+                if (leafletRef.current) {
+                    leafletRef.current.invalidateSize();
+                }
+            });
+            resizeObserver.observe(mapRef.current);
+        }
 
         return () => {
-            clearInterval(checkForLeaflet);
+            clearTimeout(timeoutId);
+            if (resizeObserver) resizeObserver.disconnect();
             if (leafletRef.current) {
                 leafletRef.current.remove();
                 leafletRef.current = null;
@@ -567,7 +579,16 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-2">
                 <MapIcon size={12} className="text-padang-green" /> Pilih Lokasi di Peta
             </label>
-            <div ref={mapRef} className="h-72 w-full rounded-3xl border border-gray-100 overflow-hidden shadow-inner z-0 relative bg-gray-100" />
+            <div className="relative admin-map-container" style={{ minHeight: '320px' }}>
+                <style>{`
+                    .admin-map-container .leaflet-container {
+                        height: 100% !important;
+                        width: 100% !important;
+                        min-height: 320px;
+                    }
+                `}</style>
+                <div ref={mapRef} className="h-80 w-full rounded-3xl border border-gray-100 overflow-hidden shadow-inner z-0 relative bg-gray-100" style={{ height: '320px', minHeight: '320px' }} />
+            </div>
             <p className="text-[10px] text-gray-400 font-bold ml-1 italic">
                 * Geser penanda merah atau klik di mana saja pada peta untuk mengatur koordinat.
             </p>

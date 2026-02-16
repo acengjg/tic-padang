@@ -41,8 +41,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onNavigate })
     return (
         <div className="flex flex-col min-h-full bg-white px-8 pt-12 pb-8 animate-in fade-in duration-500">
             <div className="mb-12">
-                <div className="h-20 w-20 bg-padang-green rounded-[32px] flex items-center justify-center shadow-2xl shadow-padang-green/20 mb-8 rotate-3">
-                    <Shield className="h-10 w-10 text-white" />
+                <div className="h-24 w-24 bg-padang-green rounded-[32px] overflow-hidden shadow-2xl shadow-padang-green/20 mb-8 rotate-3">
+                    <img src="/logo.png" alt="TIC Digital Padang" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                     <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Salam,<br />Dunsanak!</h1>
