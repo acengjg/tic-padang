@@ -36,7 +36,7 @@ sshpass -e scp -o StrictHostKeyChecking=no local_dump.sql $VPS_USER@$VPS_HOST:~/
 echo "[3/4] Restoring database on VPS '$VPS_DB'..."
 sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "
     export PGPASSWORD='$VPS_DB_PASS'
-    psql -h localhost -U $VPS_DB_USER -d $VPS_DB -f ~/local_dump.sql > /dev/null 2>&1
+    psql -h localhost -U $VPS_DB_USER -d $VPS_DB -f ~/local_dump.sql
     
     # Clean up dump file
     rm ~/local_dump.sql
