@@ -489,6 +489,11 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
         }
     }, [lat, lng]);
 
+    const onChangeRef = React.useRef(onChange);
+    React.useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
+
     React.useEffect(() => {
         const checkForLeaflet = setInterval(() => {
             if ((window as any).L && mapRef.current && !leafletRef.current) {
@@ -517,13 +522,13 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
 
                 marker.on('dragend', (e: any) => {
                     const position = e.target.getLatLng();
-                    onChange(position.lat, position.lng);
+                    onChangeRef.current(position.lat, position.lng);
                 });
 
                 map.on('click', (e: any) => {
                     const { lat, lng } = e.latlng;
                     marker.setLatLng([lat, lng]);
-                    onChange(lat, lng);
+                    onChangeRef.current(lat, lng);
                 });
 
                 // Invalidte size to fix rendering in modal
@@ -1318,7 +1323,7 @@ const AdminApp: React.FC = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Longitude</label>
                                             <input required type="number" step="any" value={formData.lng || 0} onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
                                         </div>
-                                        <MapPicker lat={formData.lat || -0.947} lng={formData.lng || 100.417} onChange={(lat, lng) => setFormData({ ...formData, lat, lng })} />
+                                        <MapPicker lat={formData.lat || -0.947} lng={formData.lng || 100.417} onChange={(lat, lng) => setFormData(prev => ({ ...prev, lat, lng }))} />
                                     </>
                                 )}
 
