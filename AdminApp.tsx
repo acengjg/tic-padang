@@ -1055,8 +1055,8 @@ const AdminApp: React.FC = () => {
                         </div>
                         <button
                             onClick={() => handleOpenModal()}
-                            disabled={activeTab === 'guides' || activeTab === 'souvenir-orders'}
-                            className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' || activeTab === 'souvenir-orders' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
+                            disabled={activeTab === 'guides' || activeTab === 'souvenir-orders' || activeTab === 'souvenir-vendors' || activeTab === 'culinary'}
+                            className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' || activeTab === 'souvenir-orders' || activeTab === 'souvenir-vendors' || activeTab === 'culinary' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
                         >
                             <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'culinary' ? 'Tempat Kuliner' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : activeTab === 'souvenir-vendors' ? 'Vendor' : activeTab === 'souvenir-products' ? 'Produk' : 'Data'}
                         </button>
@@ -1185,12 +1185,14 @@ const AdminApp: React.FC = () => {
                                             </div>
                                         ) : (
                                             <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleOpenModal(item)}
-                                                    className="p-2.5 bg-gray-50 text-gray-400 hover:text-padang-green hover:bg-padang-green/5 rounded-xl transition-all"
-                                                >
-                                                    <Edit size={18} />
-                                                </button>
+                                                {!(activeTab === 'guides' || activeTab === 'souvenir-vendors' || activeTab === 'culinary') && (
+                                                    <button
+                                                        onClick={() => handleOpenModal(item)}
+                                                        className="p-2.5 bg-gray-50 text-gray-400 hover:text-padang-green hover:bg-padang-green/5 rounded-xl transition-all"
+                                                    >
+                                                        <Edit size={18} />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleDelete(item.id)}
                                                     className="p-2.5 bg-gray-50 text-gray-400 hover:text-chili-red hover:bg-red-50 rounded-xl transition-all"

@@ -24,6 +24,12 @@ echo "[5/5] Updating code and rebuilding on VPS..."
 sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_HOST "
     cd ~/tic-padang
     
+    if [ ! -d ".git" ]; then
+        echo "Git not initialized on VPS. Initializing..."
+        git init
+        git remote add origin https://github.com/acengjg/tic-padang.git
+    fi
+    
     echo 'Fetching and resetting code to match GitHub (FORCE)...'
     git fetch origin
     git reset --hard origin/main
