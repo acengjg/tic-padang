@@ -136,8 +136,13 @@ const HotspotPicker: React.FC<{
 
         // Wait for pannellum to be available in window
         if (!(window as any).pannellum) {
-            console.error("Pannellum not found in window");
-            setError("Library Pannellum belum dimuat. Cek koneksi internet.");
+            console.error("Pannellum not found in window. Make sure the script is loaded.");
+            setError("Library Pannellum belum dimuat. Cek koneksi internet dunsanak.");
+            return;
+        }
+
+        if (!viewerRef.current) {
+            console.warn("viewerRef.current is null during initViewer");
             return;
         }
 
@@ -155,19 +160,19 @@ const HotspotPicker: React.FC<{
                 panorama: panoramaUrl,
                 autoLoad: true,
                 showControls: true,
-                hotSpots: hotspots.map((h, i) => ({
+                hotSpots: (hotspots || []).filter(h => h && typeof h === 'object').map((h, i) => ({
                     ...h,
                     createTooltipFunc: (el: HTMLElement) => {
                         el.classList.add('custom-hotspot-label');
                         el.innerHTML = `
                             <div class="bg-black/90 backdrop-blur-md text-white p-3 rounded-2xl border border-white/20 shadow-2xl min-w-[150px] pointer-events-none">
-                                <p class="text-[10px] font-black text-padang-green uppercase tracking-widest mb-1">${h.text || 'Hotspot'}</p>
-                                ${h.description ? `<p class="text-[9px] text-white/70 leading-relaxed font-medium">${h.description}</p>` : ''}
+                                <p class="text-[10px] font-black text-padang-green uppercase tracking-widest mb-1">${(h && h.text) || 'Hotspot'}</p>
+                                ${(h && h.description) ? `<p class="text-[9px] text-white/70 leading-relaxed font-medium">${h.description}</p>` : ''}
                             </div>
                         `;
                     }
                 })),
-                crossOrigin: imageUrl.startsWith('http') ? 'anonymous' : undefined,
+                crossOrigin: imageUrl && imageUrl.startsWith('http') ? 'anonymous' : undefined,
             });
 
             viewerInstance.current.on('load', () => {
@@ -344,7 +349,7 @@ const HotspotPicker: React.FC<{
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {hotspots.map((h, i) => (
+                            {(hotspots || []).filter(h => h !== null).map((h, i) => (
                                 <div key={i} className="bg-gray-50 p-4 rounded-[24px] border border-gray-100 space-y-3 animate-in fade-in slide-in-from-right-4 duration-300">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-2">
@@ -358,7 +363,7 @@ const HotspotPicker: React.FC<{
                                     <div className="space-y-3">
                                         <input
                                             type="text"
-                                            value={h.text}
+                                            value={h.text || ''}
                                             onChange={(e) => updateHotspot(i, { text: e.target.value })}
                                             className="w-full text-sm font-bold text-gray-800 bg-white border border-gray-100 outline-none p-4 rounded-2xl focus:ring-2 focus:ring-padang-green/10 transition-all"
                                             placeholder="Judul (muncul saat hover)"
@@ -423,11 +428,14 @@ const SceneManager: React.FC<{
     return (
         <div className="space-y-6">
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                {scenes.map((s, i) => (
+                {(scenes || []).filter(s => s !== null).map((s, i) => (
                     <div key={s.id || i} className="relative group flex-shrink-0">
                         <button
                             type="button"
-                            onClick={() => setActiveSceneIdx(i)}
+                            onClick={() => {
+                                console.log(`Switching to scene index: ${i}`);
+                                setActiveSceneIdx(i);
+                            }}
                             className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${activeSceneIdx === i ? 'bg-padang-green text-white border-padang-green shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-padang-green/30'}`}
                         >
                             {s.name || 'Untitled'}
@@ -482,6 +490,7 @@ const SceneManager: React.FC<{
 
                     {currentScene.image360 ? (
                         <HotspotPicker
+                            key={`scene-${activeSceneIdx}-${currentScene.id || 'initial'}`}
                             imageUrl={currentScene.image360}
                             hotspots={Array.isArray(currentScene.hotspots) ? currentScene.hotspots : []}
                             onChange={(h) => updateActiveScene({ hotspots: h })}

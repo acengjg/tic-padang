@@ -96,7 +96,7 @@ const requireCulinary = async (req: any, res: any, next: NextFunction) => {
 };
 
 app.get('/api/version', (req, res) => {
-  res.json({ version: '1.0.5-virtual-tour-fix', timestamp: new Date().toISOString() });
+  res.json({ version: '1.0.6-virtual-tour-fix-v2', timestamp: new Date().toISOString() });
 });
 
 // --- AUTH ROUTES ---
