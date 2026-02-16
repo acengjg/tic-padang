@@ -9,6 +9,7 @@ import {
   Maximize2, View, Compass, Car, Bath, Coffee, Camera, Wifi, Utensils, RefreshCw, PlayCircle
 } from 'lucide-react';
 import VirtualTourScreen from './VirtualTourScreen';
+import YouTubePlayer from '../components/YouTubePlayer';
 
 interface DetailScreenProps {
   destination: Destination;
@@ -391,7 +392,8 @@ const DetailScreen: React.FC<DetailScreenProps> = ({ destination, onBack }) => {
         <div className="text-gray-600 text-sm leading-relaxed min-h-[200px]">
           {activeTab === 'info' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-400">
-              <p className="mb-8 text-gray-500 leading-relaxed text-[13px]">{destination.description}</p>
+              {destination.videoUrl && <YouTubePlayer url={destination.videoUrl} className="mb-6 rounded-2xl" />}
+              <p className="mb-8 text-gray-500 leading-relaxed text-[13px] whitespace-pre-wrap">{destination.description}</p>
 
               <div className="flex items-center justify-between mb-6 px-1">
                 <h4 className="font-black text-gray-800 text-[10px] uppercase tracking-[3px] flex items-center gap-2">

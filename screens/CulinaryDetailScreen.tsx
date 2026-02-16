@@ -4,10 +4,11 @@ import {
     ChevronLeft, Star, Clock, MapPin, Share2,
     Heart, Wifi, Car, Sun, Shield, Banknote,
     Coffee, Tag, Image as ImageIcon, Utensils,
-    Info, Sparkles, Navigation, Menu, MessageSquare, CheckCircle2, X, RefreshCw
+    Info, Sparkles, Navigation, Menu, MessageSquare, CheckCircle2, X, RefreshCw, ArrowRight
 } from 'lucide-react';
 import { apiService } from '../client';
 import { SafeImage } from '../components/SafeImage';
+import YouTubePlayer from '../components/YouTubePlayer';
 import { CulinarySpot, AppScreen } from '../types';
 
 interface CulinaryDetailScreenProps {
@@ -28,7 +29,77 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
     const [isFavorite, setIsFavorite] = useState(false);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
+    type CartItem = { item: any, quantity: number, note: string };
+    const [cart, setCart] = useState<{ [key: string]: CartItem }>({});
+    const [isCartModalOpen, setIsCartModalOpen] = useState(false);
+    const [orderNote, setOrderNote] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const handleAddToCart = (item: any) => {
+        setCart(prev => {
+            const current = prev[item.id] || { item, quantity: 0, note: '' };
+            return {
+                ...prev,
+                [item.id]: { ...current, quantity: current.quantity + 1 }
+            };
+        });
+    };
+
+    const handleRemoveFromCart = (itemId: string) => {
+        setCart(prev => {
+            const current = prev[itemId];
+            if (!current) return prev;
+            if (current.quantity <= 1) {
+                const { [itemId]: _, ...rest } = prev;
+                return rest;
+            }
+            return {
+                ...prev,
+                [itemId]: { ...current, quantity: current.quantity - 1 }
+            };
+        });
+    };
+
+    const handleUpdateCartNote = (itemId: string, note: string) => {
+        setCart(prev => {
+            if (!prev[itemId]) return prev;
+            return {
+                ...prev,
+                [itemId]: { ...prev[itemId], note }
+            };
+        });
+    };
+
+    const getTotalPrice = (): number => {
+        return (Object.values(cart) as CartItem[]).reduce((total: number, { item, quantity }: CartItem) => total + ((item.price || 0) * (quantity || 0)), 0);
+    };
+
+    const handleCheckout = async () => {
+        if (!spot) return;
+        setSubmitting(true);
+        try {
+            const items = Object.values(cart).map(({ item, quantity, note }) => ({
+                menuId: item.id,
+                quantity,
+                note
+            }));
+
+            await apiService.createCulinaryOrder({
+                spotId: spot.id,
+                items,
+                note: orderNote
+            });
+
+            alert('Pesanan berhasil dibuat! Mohon tunggu konfirmasi dari penjual.');
+            setCart({});
+            setOrderNote('');
+            setIsCartModalOpen(false);
+        } catch (error: any) {
+            alert(error.message || 'Gagal membuat pesanan');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const handleCheckIn = async () => {
         setIsCheckingIn(true);
@@ -134,6 +205,8 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
     }
 
     if (!spot) return <div className="text-center p-8">Spot not found</div>;
+
+    const cartItemCount: number = (Object.values(cart) as CartItem[]).reduce((acc: number, curr: CartItem) => acc + curr.quantity, 0);
 
     return (
         <div ref={containerRef} className="relative bg-white min-h-screen pb-24 animate-in slide-in-from-bottom duration-500">
@@ -250,7 +323,40 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
                                     <h3 className="font-black text-gray-800 text-[10px] uppercase tracking-[3px] flex items-center gap-2 mb-4">
                                         <Sparkles className="h-4 w-4 text-padang-green" /> Tentang Restoran
                                     </h3>
-                                    <p className="text-gray-500 leading-relaxed text-[13px]">{spot.description}</p>
+                                    {spot.videoUrl && <YouTubePlayer url={spot.videoUrl} className="mb-6 rounded-2xl" />}
+                                    <p className="text-gray-500 leading-relaxed text-[13px] whitespace-pre-wrap">{spot.description}</p>
+                                </section>
+
+                                <section>
+                                    <h3 className="font-black text-gray-800 text-[10px] uppercase tracking-[3px] flex items-center gap-2 mb-4">
+                                        <Info size={16} className="text-padang-green" /> Disediakan Oleh
+                                    </h3>
+                                    <button
+                                        onClick={() => spot.userId && onNavigate(AppScreen.PUBLIC_PROFILE, spot.userId)}
+                                        className="w-full bg-gray-50 rounded-[32px] p-6 border border-gray-100 flex items-center gap-4 group active:scale-95 transition-all text-left"
+                                    >
+                                        <div className="h-16 w-16 rounded-2xl bg-white overflow-hidden shadow-sm border border-gray-100 shrink-0">
+                                            {spot.user?.avatar ? (
+                                                <img src={spot.user.avatar} className="w-full h-full object-cover" alt={spot.user.name} />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-padang-green/5 text-padang-green font-black">
+                                                    {spot.user?.name?.charAt(0) || 'U'}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pemilik Usaha</p>
+                                            <h3 className="font-black text-gray-800 flex items-center gap-2">
+                                                {spot.user?.name || 'Owner'}
+                                                <Shield size={16} className="text-blue-500" />
+                                            </h3>
+                                            <div className="flex items-center gap-1 text-gray-400">
+                                                <MapPin size={10} />
+                                                <span className="text-[10px] font-bold">Sumatera Barat</span>
+                                            </div>
+                                        </div>
+                                        <ArrowRight size={20} className="text-gray-300 group-hover:text-padang-green transition-colors" />
+                                    </button>
                                 </section>
 
                                 <section>
@@ -279,10 +385,8 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
                                                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Harga</span>
                                                     <span className="text-xs font-black text-gray-800">
                                                         {(() => {
-                                                            if (spot.priceRange && spot.priceRange.includes('Rp') && !spot.priceRange.includes('Rp Rp')) return spot.priceRange;
-
-                                                            const menus = typeof spot.menuHighlights === 'string' ? JSON.parse(spot.menuHighlights) : (spot.menuHighlights || []);
-                                                            const prices = Array.isArray(menus) ? menus.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0) : [];
+                                                            const menuItems = spot.menu || [];
+                                                            const prices = menuItems.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0);
 
                                                             if (prices.length > 0) {
                                                                 const min = Math.min(...prices);
@@ -325,31 +429,56 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
                                     </h3>
                                 </div>
 
-                                {spot.menuHighlights?.map((item: any, idx: number) => (
-                                    <div key={idx} className="flex gap-4 p-4 bg-white border border-gray-100 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all group">
-                                        <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden flex-shrink-0 shadow-inner relative">
-                                            {item.image ? (
-                                                <SafeImage src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                                    <Coffee size={24} />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 flex flex-col justify-center">
-                                            <h4 className="font-bold text-gray-800 mb-1 line-clamp-2">{item.name}</h4>
-                                            <p className="text-padang-green font-black text-lg">
-                                                Rp {item.price.toLocaleString('id-ID')}
-                                            </p>
-                                            <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">Favorit pelanggan</p>
-                                        </div>
-                                        <button className="self-center p-3 rounded-2xl bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all active:scale-95">
-                                            <Heart size={20} />
-                                        </button>
-                                    </div>
-                                ))}
+                                {(spot.menu && spot.menu.length > 0) ? spot.menu.map((item: any, idx: number) => {
+                                    const inCart = cart[item.id];
+                                    return (
+                                        <div key={idx} className="flex gap-4 p-4 bg-white border border-gray-100 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all group">
+                                            <div className="w-24 h-24 rounded-2xl bg-gray-100 overflow-hidden flex-shrink-0 shadow-inner relative">
+                                                {item.image ? (
+                                                    <SafeImage src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                        <Coffee size={24} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 flex flex-col justify-center">
+                                                <h4 className="font-bold text-gray-800 mb-1 line-clamp-2">{item.name}</h4>
+                                                <p className="text-padang-green font-black text-lg">
+                                                    Rp {item.price.toLocaleString('id-ID')}
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{item.description || 'Favorit pelanggan'}</p>
 
-                                {(!spot.menuHighlights || spot.menuHighlights.length === 0) && (
+                                                <div className="mt-3 flex items-center justify-end">
+                                                    {inCart ? (
+                                                        <div className="flex items-center gap-3 bg-gray-100 rounded-xl p-1">
+                                                            <button
+                                                                onClick={() => handleRemoveFromCart(item.id)}
+                                                                className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:text-red-500"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <span className="font-black text-gray-800 w-4 text-center">{inCart.quantity}</span>
+                                                            <button
+                                                                onClick={() => handleAddToCart(item)}
+                                                                className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-padang-green hover:bg-padang-green/10"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleAddToCart(item)}
+                                                            className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-black transition-colors"
+                                                        >
+                                                            Tambah
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }) : (
                                     <div className="text-center py-12 text-gray-400 bg-gray-50 rounded-[32px] border border-gray-100 border-dashed">
                                         <Utensils size={40} className="mx-auto mb-3 text-gray-300 opacity-50" />
                                         <p className="text-xs font-bold uppercase tracking-widest">Belum ada info menu</p>
@@ -535,6 +664,108 @@ export const CulinaryDetailScreen: React.FC<CulinaryDetailScreenProps> = ({ spot
             </div>
 
             {/* Bottom Action Bar */}
+            {cartItemCount > 0 && (
+                <div className="fixed bottom-24 left-4 right-4 z-[99]">
+                    <button
+                        onClick={() => setIsCartModalOpen(true)}
+                        className="w-full bg-orange-500 text-white rounded-2xl p-4 shadow-xl shadow-orange-500/30 flex items-center justify-between hover:bg-orange-600 transition-all active:scale-95"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-black text-sm">
+                                {cartItemCount}
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <span className="text-xs font-medium opacity-90">Total Pesanan</span>
+                                <span className="text-lg font-black">Rp {getTotalPrice().toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center font-bold text-sm bg-white/10 px-4 py-2 rounded-xl">
+                            Lihat Menu <Coffee className="ml-2 w-4 h-4" />
+                        </div>
+                    </button>
+                </div>
+            )}
+
+            {isCartModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-lg rounded-t-[40px] sm:rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom duration-300">
+                        <div className="p-6 bg-orange-500 text-white flex flex-row justify-between items-center shadow-lg relative z-10">
+                            <div>
+                                <h3 className="text-xl font-black">Keranjang</h3>
+                                <p className="text-xs opacity-80 font-medium">{spot.name}</p>
+                            </div>
+                            <button onClick={() => setIsCartModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+                            {Object.values(cart).map(({ item, quantity, note }) => (
+                                <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden">
+                                                <SafeImage src={item.image} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-800">{item.name}</h4>
+                                                <p className="text-orange-500 font-bold text-sm">Rp {item.price.toLocaleString('id-ID')}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
+                                            <button
+                                                onClick={() => handleRemoveFromCart(item.id)}
+                                                className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm hover:text-red-500"
+                                            >
+                                                -
+                                            </button>
+                                            <span className="font-black text-sm w-4 text-center">{quantity}</span>
+                                            <button
+                                                onClick={() => handleAddToCart(item)}
+                                                className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm hover:text-green-500"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Catatan (pedas, tanpa bawang, dll)..."
+                                        value={note}
+                                        onChange={(e) => handleUpdateCartNote(item.id, e.target.value)}
+                                        className="w-full text-xs p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                                    />
+                                </div>
+                            ))}
+
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mt-4">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Catatan Tambahan</label>
+                                <textarea
+                                    className="w-full p-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 min-h-[80px]"
+                                    placeholder="Catatan untuk seluruh pesanan..."
+                                    value={orderNote}
+                                    onChange={(e) => setOrderNote(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-white border-t border-gray-100 pb-8">
+                            <div className="flex justify-between items-center mb-6">
+                                <span className="text-gray-500 font-bold text-sm">Total Pembayaran</span>
+                                <span className="text-2xl font-black text-gray-900">Rp {getTotalPrice().toLocaleString('id-ID')}</span>
+                            </div>
+                            <button
+                                onClick={handleCheckout}
+                                disabled={submitting}
+                                className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-orange-500/20 hover:bg-orange-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                            >
+                                {submitting ? 'Memproses...' : 'Buat Pesanan Sekarang'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl p-4 flex gap-2 z-50 border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
                 <button
                     onClick={handleCheckIn}

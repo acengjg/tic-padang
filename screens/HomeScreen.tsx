@@ -6,9 +6,10 @@ import CreateStoryScreen from './CreateStoryScreen';
 import {
   Star, MapPin, ArrowRight, Sun, Cloud, CloudRain,
   CloudLightning, Wind, Droplets, Clock,
-  Sparkles, Award, Bell, Thermometer, Info, Calendar, Plus, UserCheck, Users, Bookmark, Utensils, Map
+  Sparkles, Award, Bell, Thermometer, Info, Calendar, Plus, UserCheck, Users, Bookmark, Utensils, Map, ShoppingBag
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import YouTubePlayer from '../components/YouTubePlayer';
 
 const StoriesBar: React.FC<{ stories: Story[], onAddStory: () => void, onViewStory: (index: number) => void }> = ({ stories, onAddStory, onViewStory }) => {
   const { t } = useLanguage();
@@ -179,6 +180,7 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
             { label: 'Wisata', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-100/50', screen: AppScreen.EXPLORE },
             { label: 'Kuliner', icon: Utensils, color: 'text-orange-600', bg: 'bg-orange-100/50', screen: AppScreen.CULINARY_SPOTS },
             { label: 'Event', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100/50', screen: AppScreen.EVENTS },
+            { label: 'Oleh-oleh', icon: ShoppingBag, color: 'text-amber-600', bg: 'bg-amber-100/50', screen: AppScreen.SOUVENIR_MARKETPLACE },
             { label: 'Guide', icon: UserCheck, color: 'text-rose-600', bg: 'bg-rose-100/50', screen: AppScreen.GUIDE_MARKETPLACE },
             { label: 'Buddy', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100/50', screen: AppScreen.TRAVEL_BUDDY },
             { label: 'Jejak', icon: Map, color: 'text-purple-600', bg: 'bg-purple-100/50', screen: AppScreen.FOOTPRINT },
@@ -203,20 +205,14 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
           <div className="relative rounded-[32px] overflow-hidden shadow-xl border border-white h-72 group cursor-pointer">
             {promotions[0].videoUrl ? (
               <div className="absolute inset-0 w-full h-full pointer-events-none">
-                <iframe
-                  className="w-[100%] h-[100%] scale-[1.5]"
-                  src={`https://www.youtube.com/embed/${((url: string) => {
-                    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                    const match = url.match(regExp);
-                    return (match && match[2].length === 11) ? match[2] : url;
-                  })(promotions[0].videoUrl)}?autoplay=1&mute=1&controls=0&loop=1&playlist=${((url: string) => {
-                    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                    const match = url.match(regExp);
-                    return (match && match[2].length === 11) ? match[2] : url;
-                  })(promotions[0].videoUrl)}&showinfo=0&rel=0&modestbranding=1`}
-                  allow="autoplay; encrypted-media"
-                  frameBorder="0"
-                ></iframe>
+                <YouTubePlayer
+                  url={promotions[0].videoUrl}
+                  autoplay={true}
+                  mute={true}
+                  controls={false}
+                  loop={true}
+                  className="w-full h-full scale-[1.5]"
+                />
               </div>
             ) : (
               <ImageWithPlaceholder src={promotions[0].image} alt={promotions[0].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />

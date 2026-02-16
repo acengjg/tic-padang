@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Save, Plus, Trash2, MapPin, Clock, Users, Info, X, Loader2, Map as MapIcon } from 'lucide-react';
-import { apiService } from '../client';
+import { apiService, getProxiedImageUrl } from '../client';
 import { AppScreen } from '../types';
 
 const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, lng: number) => void }> = ({ lat, lng, onChange }) => {
@@ -476,7 +476,7 @@ const CreatePackageScreen: React.FC<CreatePackageScreenProps> = ({ onBack, onSuc
                                     />
                                     {item && (
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg overflow-hidden border border-gray-100 shadow-sm animate-in zoom-in duration-300">
-                                            <img src={item} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100?text=Error')} />
+                                            <img src={getProxiedImageUrl(item)} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100?text=Error')} />
                                         </div>
                                     )}
                                 </div>

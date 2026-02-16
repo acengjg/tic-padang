@@ -5,7 +5,7 @@ export interface User {
   avatar: string | null;
   level: number;
   points: number;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'VENDOR' | 'CULINARY' | 'GUIDE';
   bio?: string;
   phone?: string;
 }
@@ -23,6 +23,7 @@ export interface Destination {
   scenes?: any;
   isEnhanced?: boolean;
   description: string;
+  videoUrl?: string;
   price?: string;
   coordinates: { lat: number; lng: number };
 }
@@ -41,6 +42,7 @@ export interface Event {
   date: string;
   location: string;
   image: string;
+  videoUrl?: string;
   description: string;
   price?: string;
   createdAt?: string;
@@ -76,7 +78,16 @@ export enum AppScreen {
   CULINARY_SPOTS = 'culinary_spots',
   CULINARY_DETAIL = 'culinary_detail',
   FOOTPRINT = 'footprint',
-  BADGES = 'badges'
+  BADGES = 'badges',
+  SOUVENIR_MARKETPLACE = 'souvenir_marketplace',
+  SOUVENIR_DETAIL = 'souvenir_detail',
+  SOUVENIR_ORDERS = 'souvenir_orders',
+  SOUVENIR_VENDOR_APPLY = 'souvenir_vendor_apply',
+  SOUVENIR_VENDOR_DETAIL = 'souvenir_vendor_detail',
+  CULINARY_VENDOR_APPLY = 'culinary_vendor_apply',
+  VENDOR_DASHBOARD = 'vendor_dashboard',
+  CULINARY_DASHBOARD = 'culinary_dashboard',
+  CULINARY_ORDER_HISTORY = 'culinary_order_history'
 }
 
 export interface TravelBuddyPost {
@@ -149,6 +160,7 @@ export interface Article {
   title: string;
   content: string;
   image: string;
+  videoUrl?: string;
   category: string;
   author: string;
   date: string;
@@ -234,6 +246,7 @@ export interface TourPackage {
   exclusions: string[];
   requirements: any;
   photos: string[];
+  videoUrl?: string;
   status: 'ACTIVE' | 'INACTIVE';
   averageRating: number;
   guide?: Guide;
@@ -264,13 +277,27 @@ export interface CulinarySpot {
   lng: number;
   image: string;
   images: string[];
+  videoUrl?: string;
   facilities: string[];
   openingHours: any;
   menuHighlights: any;
   rating: number;
   totalReviews: number;
   isHalal: boolean;
+  userId?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  user?: { name: string; avatar: string | null };
+  menu?: CulinaryMenu[];
   reviews?: CulinaryReview[];
+}
+
+export interface CulinaryMenu {
+  id: string;
+  spotId: string;
+  name: string;
+  description: string;
+  price: number;
+  image?: string;
 }
 
 export interface CulinaryReview {
@@ -325,4 +352,56 @@ export interface FootprintStats {
   eventsCount: number;
   totalPoints: number;
   level: number;
+}
+
+export interface SouvenirVendor {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  image: string;
+  location: string;
+  videoUrl?: string;
+  lat?: number;
+  lng?: number;
+  contact?: string;
+  rating: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
+
+export interface SouvenirProduct {
+  id: string;
+  vendorId: string;
+  name: string;
+  description: string;
+  price: number;
+  images: string[];
+  category: string;
+  stock: number;
+  rating: number;
+  vendor?: SouvenirVendor;
+}
+
+export interface SouvenirOrder {
+  id: string;
+  userId: string;
+  vendorId: string;
+  totalPrice: number;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED';
+  paymentStatus: 'PENDING' | 'PAID';
+  shippingAddress?: string;
+  createdAt: string;
+  updatedAt: string;
+  items: SouvenirOrderItem[];
+  user?: User;
+  vendor?: SouvenirVendor;
+}
+
+export interface SouvenirOrderItem {
+  id: string;
+  orderId: string;
+  productId: string;
+  quantity: number;
+  price: number;
+  product?: SouvenirProduct;
 }

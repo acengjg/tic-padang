@@ -8,26 +8,27 @@ datasource db {
 }
 
 model Destination {
-  id              String   @id @default(cuid())
-  name            String
-  category        String
-  rating          Float
-  location        String
-  image           String
-  image360        String?
-  audioNarration  String?
-  hotspots        Json?
-  scenes          Json? // Stores multiple scenes/POIs
-  isEnhanced      Boolean  @default(false)
-  description     String
-  price           String?
-  lat             Float
-  lng             Float
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  reviews         Review[]
-  buddyPosts      TravelBuddyPost[]
-  footprints      Footprint[]
+  id             String            @id @default(cuid())
+  name           String
+  category       String
+  rating         Float
+  location       String
+  image          String
+  image360       String?
+  description    String
+  price          String?
+  lat            Float
+  lng            Float
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  audioNarration String?
+  hotspots       Json?
+  isEnhanced     Boolean           @default(false)
+  scenes         Json?
+  videoUrl       String?
+  footprints     Footprint[]
+  reviews        Review[]
+  buddyPosts     TravelBuddyPost[]
 }
 
 model Promotion {
@@ -35,46 +36,48 @@ model Promotion {
   title     String
   discount  String
   image     String
-  videoUrl  String?
   provider  String
   createdAt DateTime @default(now())
+  videoUrl  String?
 }
 
 model Event {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   date        DateTime
   location    String
   image       String
   description String
   price       String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
+  videoUrl    String?
   footprints  Footprint[]
 }
 
 model Article {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
-  image     String
-  category  String
-  author    String   @default("Admin")
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  subjectTitle String?
+  id           String    @id @default(cuid())
+  title        String
+  content      String
+  image        String
+  category     String
+  author       String    @default("Admin")
+  date         DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   subjectDate  String?
-  comments  Comment[]
+  subjectTitle String?
+  videoUrl     String?
+  comments     Comment[]
 }
 
 model Comment {
   id        String   @id @default(cuid())
   content   String
   articleId String
-  article   Article  @relation(fields: [articleId], references: [id])
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  article   Article  @relation(fields: [articleId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Plan {
@@ -98,254 +101,241 @@ model PlanItem {
 
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  level     Int      @default(1)
-  points    Int      @default(0)
-  avatar    String?
-  createdAt DateTime @default(now())
-  email     String   @unique
-  password  String
-  phone     String?
-  updatedAt DateTime @updatedAt
-  subjectTitle String?
-  subjectDate  String?
-  role      Role     @default(USER)
-
-  plans     Plan[]
-  reviews   Review[]
-  comments  Comment[]
-  footprints Footprint[]
-  badges    UserBadge[]
-  
-  // Story Relations
-  stories       Story[]
-  storyLikes    StoryLike[]
-  storyComments StoryComment[]
-
-  // Local Guide Marketplace Relations
-  guide           Guide?
-  bookings        Booking[]
-  packageReviews  PackageReview[]
-  messages        BookingMessage[]
-  guideReviewsGiven    GuideReview[] @relation("GuideReviewsGiven")
-  earnings        GuideEarning[]
-  conversations   ConversationMember[]
-  chatMessages    Message[]
-
-  // Travel Buddy Relations
-  buddyPosts      TravelBuddyPost[]
+  id                String                   @id @default(cuid())
+  name              String
+  level             Int                      @default(1)
+  points            Int                      @default(0)
+  avatar            String?
+  createdAt         DateTime                 @default(now())
+  email             String                   @unique
+  password          String
+  phone             String?
+  updatedAt         DateTime                 @updatedAt
+  role              Role                     @default(USER)
+  subjectDate       String?
+  subjectTitle      String?
+  bookings          Booking[]
+  messages          BookingMessage[]
+  comments          Comment[]
+  conversations     ConversationMember[]
+  culinaryReviews   CulinaryReview[]
+  footprints        Footprint[]
+  guide             Guide?
+  earnings          GuideEarning[]
+  guideReviewsGiven GuideReview[]            @relation("GuideReviewsGiven")
+  chatMessages      Message[]
+  packageReviews    PackageReview[]
+  plans             Plan[]
+  reviews           Review[]
+  souvenirOrders    SouvenirOrder[]
+  souvenirVendors   SouvenirVendor[]
+  culinarySpots     CulinarySpot[]
+  stories           Story[]
+  storyComments     StoryComment[]
+  storyLikes        StoryLike[]
   buddyApplications TravelBuddyApplication[]
-  culinaryReviews CulinaryReview[]
+  buddyPosts        TravelBuddyPost[]
+  badges            UserBadge[]
+  culinaryOrders    CulinaryOrder[]
 }
 
 model Guide {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  status          String   @default("PENDING") // PENDING, APPROVED, SUSPENDED
-  verificationLevel String @default("BASIC") // BASIC, VERIFIED, PROFESSIONAL
-  bio             String
-  languages       String[] // ["Bahasa", "English"]
-  specializations String[] // ["Culinary", "Cultural"]
-  yearsExperience Int
-  videoIntroUrl   String?
-  certifications  String[] // URLs atau filenames
-  averageRating   Float    @default(0)
-  totalTours      Int      @default(0)
-  totalReviews    Int      @default(0)
-  responseRate    Float    @default(0)
-  responseTime    Int?     // in minutes
-  createdAt       DateTime @default(now())
-  
-  user            User     @relation(fields: [userId], references: [id])
-  packages        TourPackage[]
-  bookings        Booking[]
-  reviews         PackageReview[]
-  guideReviews    GuideReview[] @relation("GuideReviewsReceived")
-  earnings        GuideEarning[]
-  conversations   Conversation[]
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  status            String          @default("PENDING")
+  verificationLevel String          @default("BASIC")
+  bio               String
+  languages         String[]
+  specializations   String[]
+  yearsExperience   Int
+  videoIntroUrl     String?
+  certifications    String[]
+  averageRating     Float           @default(0)
+  totalTours        Int             @default(0)
+  totalReviews      Int             @default(0)
+  responseRate      Float           @default(0)
+  responseTime      Int?
+  createdAt         DateTime        @default(now())
+  bookings          Booking[]
+  conversations     Conversation[]
+  user              User            @relation(fields: [userId], references: [id])
+  earnings          GuideEarning[]
+  guideReviews      GuideReview[]   @relation("GuideReviewsReceived")
+  reviews           PackageReview[]
+  packages          TourPackage[]
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  guideId   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  subjectTitle String?
+  id           String               @id @default(cuid())
+  guideId      String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   subjectDate  String?
-  
-  guide     Guide?   @relation(fields: [guideId], references: [id])
-  members   ConversationMember[]
-  messages  Message[]
+  subjectTitle String?
+  guide        Guide?               @relation(fields: [guideId], references: [id])
+  members      ConversationMember[]
+  messages     Message[]
 }
 
 model ConversationMember {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
   userId         String
-  createdAt      DateTime @default(now())
-  
+  createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   user           User         @relation(fields: [userId], references: [id])
-  
+
   @@unique([conversationId, userId])
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   conversationId String
-  senderId        String
+  senderId       String
   content        String
   attachments    String[]
-  isRead         Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   sender         User         @relation(fields: [senderId], references: [id])
 }
 
 model TourPackage {
-  id              String   @id @default(cuid())
+  id              String          @id @default(cuid())
   guideId         String
   title           String
-  category        String   // Cultural, Culinary, etc
-  tags            String[] // family-friendly, etc
+  category        String
+  tags            String[]
   description     String
-  duration        Int      // in hours
-  durationType    String   // HALF_DAY, FULL_DAY, MULTI_DAY
+  duration        Int
+  durationType    String
   maxParticipants Int
   basePrice       Int
-  groupDiscount   Json?    // {5: 10, 10: 15}
+  groupDiscount   Json?
   meetingPoint    String
   meetingPointLat Float?
   meetingPointLng Float?
-  itinerary       Json     // [{time, place, activity, description}]
-  inclusions      String[] // ["Transport", "Lunch", "Guide"]
-  exclusions      String[] // ["Personal expenses"]
-  requirements    Json     // {minAge, fitnessLevel, whatToBring}
-  photos          String[] // URLs
-  availableDays   String[] // ["MONDAY", "TUESDAY"]
-  status          String   @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED
-  averageRating   Float    @default(0)
-  totalBookings   Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  guide           Guide    @relation(fields: [guideId], references: [id])
+  itinerary       Json
+  inclusions      String[]
+  exclusions      String[]
+  requirements    Json
+  photos          String[]
+  availableDays   String[]
+  status          String          @default("ACTIVE")
+  averageRating   Float           @default(0)
+  totalBookings   Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  videoUrl        String?
   bookings        Booking[]
   reviews         PackageReview[]
+  guide           Guide           @relation(fields: [guideId], references: [id])
 }
 
 model Booking {
-  id              String   @id @default(cuid())
+  id              String           @id @default(cuid())
   packageId       String
   guideId         String
   userId          String
-  bookingDate     DateTime @default(now())
+  bookingDate     DateTime         @default(now())
   tourDate        DateTime
   participants    Int
   totalPrice      Int
-  paymentStatus   String   @default("PENDING") // PENDING, PAID, REFUNDED
+  paymentStatus   String           @default("PENDING")
   paymentMethod   String?
-  bookingStatus   String   @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
+  bookingStatus   String           @default("PENDING")
   specialRequests String?
-  travelerDetails Json?    // [{name, age, contact}]
-  cancelledBy     String?  // USER, GUIDE, ADMIN
+  travelerDetails Json?
+  cancelledBy     String?
   cancelReason    String?
   refundAmount    Int?
-  isReviewed      Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  package         TourPackage @relation(fields: [packageId], references: [id])
-  guide           Guide    @relation(fields: [guideId], references: [id])
-  user            User     @relation(fields: [userId], references: [id])
-  payment         Payment?
+  isReviewed      Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  guide           Guide            @relation(fields: [guideId], references: [id])
+  package         TourPackage      @relation(fields: [packageId], references: [id])
+  user            User             @relation(fields: [userId], references: [id])
   messages        BookingMessage[]
   review          PackageReview?
+  payment         Payment?
 }
 
 model Payment {
-  id              String   @id @default(cuid())
-  bookingId       String   @unique
+  id              String    @id @default(cuid())
+  bookingId       String    @unique
   amount          Int
-  platformFee     Int      // Commission
-  guidePayout     Int      // Amount to guide
-  method          String?  // BANK_TRANSFER, EWALLET, CREDIT_CARD
-  status          String   @default("PENDING") // PENDING, SUCCESS, FAILED
-  paymentGateway  String?  // Midtrans, etc
+  platformFee     Int
+  guidePayout     Int
+  method          String?
+  status          String    @default("PENDING")
+  paymentGateway  String?
   transactionId   String?
   paidAt          DateTime?
   releasedToGuide DateTime?
-  createdAt       DateTime @default(now())
-  
-  booking         Booking  @relation(fields: [bookingId], references: [id])
+  createdAt       DateTime  @default(now())
+  booking         Booking   @relation(fields: [bookingId], references: [id])
 }
 
 model PackageReview {
-  id              String   @id @default(cuid())
-  packageId       String
-  bookingId       String   @unique
-  userId          String
-  guideId         String
-  overallRating   Int      // 1-5
+  id                  String      @id @default(cuid())
+  packageId           String
+  bookingId           String      @unique
+  userId              String
+  guideId             String
+  overallRating       Int
   communicationRating Int?
-  punctualityRating Int?
-  knowledgeRating Int?
-  valueRating     Int?
-  comment         String?
-  photos          String[]
-  isVerified      Boolean  @default(true)
-  helpfulCount    Int      @default(0)
-  guideReply      String?
-  guideReplyAt    DateTime?
-  createdAt       DateTime @default(now())
-  
-  package         TourPackage @relation(fields: [packageId], references: [id])
-  booking         Booking  @relation(fields: [bookingId], references: [id])
-  user            User     @relation(fields: [userId], references: [id])
-  guide           Guide    @relation(fields: [guideId], references: [id])
+  punctualityRating   Int?
+  knowledgeRating     Int?
+  valueRating         Int?
+  comment             String?
+  photos              String[]
+  isVerified          Boolean     @default(true)
+  helpfulCount        Int         @default(0)
+  guideReply          String?
+  guideReplyAt        DateTime?
+  createdAt           DateTime    @default(now())
+  booking             Booking     @relation(fields: [bookingId], references: [id])
+  guide               Guide       @relation(fields: [guideId], references: [id])
+  package             TourPackage @relation(fields: [packageId], references: [id])
+  user                User        @relation(fields: [userId], references: [id])
 }
 
 model GuideReview {
-  id              String   @id @default(cuid())
-  guideId         String
-  reviewerId      String
-  rating          Float
-  comment         String?
-  createdAt       DateTime @default(now())
-  
-  guide           Guide    @relation("GuideReviewsReceived", fields: [guideId], references: [id])
-  reviewer        User     @relation("GuideReviewsGiven", fields: [reviewerId], references: [id])
+  id         String   @id @default(cuid())
+  guideId    String
+  reviewerId String
+  rating     Float
+  comment    String?
+  createdAt  DateTime @default(now())
+  guide      Guide    @relation("GuideReviewsReceived", fields: [guideId], references: [id])
+  reviewer   User     @relation("GuideReviewsGiven", fields: [reviewerId], references: [id])
 }
 
 model BookingMessage {
-  id              String   @id @default(cuid())
-  bookingId       String
-  senderId        String   
-  senderType      String   // USER or GUIDE
-  message         String
-  isAutoMessage   Boolean  @default(false)
-  attachments     String[]
-  createdAt       DateTime @default(now())
-  
-  booking         Booking  @relation(fields: [bookingId], references: [id])
-  sender          User     @relation(fields: [senderId], references: [id])
+  id            String   @id @default(cuid())
+  bookingId     String
+  senderId      String
+  senderType    String
+  message       String
+  isAutoMessage Boolean  @default(false)
+  attachments   String[]
+  createdAt     DateTime @default(now())
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  sender        User     @relation(fields: [senderId], references: [id])
 }
 
 model GuideEarning {
-  id              String   @id @default(cuid())
-  guideId         String
-  userId          String?  // Optional: associated user for tracking
-  amount          Int
-  type            String   // BOOKING_PAYOUT, BONUS, PENALTY
-  status          String   @default("PENDING") // PENDING, WITHDRAWN, CANCELLED
-  withdrawnAt     DateTime?
-  notes           String?
-  createdAt       DateTime @default(now())
-  
-  guide           Guide    @relation(fields: [guideId], references: [id])
-  user            User?    @relation(fields: [userId], references: [id])
+  id          String    @id @default(cuid())
+  guideId     String
+  userId      String?
+  amount      Int
+  type        String
+  status      String    @default("PENDING")
+  withdrawnAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  guide       Guide     @relation(fields: [guideId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
 }
 
 model Review {
@@ -355,40 +345,31 @@ model Review {
   rating        Int
   comment       String
   createdAt     DateTime    @default(now())
-  
-  user          User        @relation(fields: [userId], references: [id])
   destination   Destination @relation(fields: [destinationId], references: [id])
-}
-
-enum Role {
-  USER
-  ADMIN
-  GUIDE
+  user          User        @relation(fields: [userId], references: [id])
 }
 
 model Story {
-  id          String         @id @default(cuid())
-  userId      String
-  caption     String?
-  location    String?
-  viewCount   Int            @default(0)
-  createdAt   DateTime       @default(now())
-  expiresAt   DateTime?
-  
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  media       StoryMedia[]
-  likes       StoryLike[]
-  comments    StoryComment[]
+  id        String         @id @default(cuid())
+  userId    String
+  caption   String?
+  location  String?
+  viewCount Int            @default(0)
+  createdAt DateTime       @default(now())
+  expiresAt DateTime?
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments  StoryComment[]
+  likes     StoryLike[]
+  media     StoryMedia[]
 }
 
 model StoryMedia {
-  id        String   @id @default(cuid())
-  storyId   String
-  url       String
-  type      String   // 'IMAGE' or 'VIDEO'
-  order     Int      @default(0)
-  
-  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  storyId String
+  url     String
+  type    String
+  order   Int    @default(0)
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
 }
 
 model StoryLike {
@@ -396,7 +377,6 @@ model StoryLike {
   storyId   String
   userId    String
   createdAt DateTime @default(now())
-  
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -409,109 +389,240 @@ model StoryComment {
   userId    String
   content   String
   createdAt DateTime @default(now())
-  
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TravelBuddyPost {
-  id              String   @id @default(cuid())
-  userId          String
-  destinationId   String?
-  title           String
-  description     String
-  startDate       DateTime
-  endDate         DateTime
-  maxBuddies      Int      @default(2)
-  status          String   @default("OPEN") // OPEN, CLOSED, CANCELLED
-  requirements    String?
-  budgetRange     String?  // Economy, Premium, etc
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  user            User     @relation(fields: [userId], references: [id])
-  destination     Destination? @relation(fields: [destinationId], references: [id])
-  applications    TravelBuddyApplication[]
+  id            String                   @id @default(cuid())
+  userId        String
+  destinationId String?
+  title         String
+  description   String
+  startDate     DateTime
+  endDate       DateTime
+  maxBuddies    Int                      @default(2)
+  status        String                   @default("OPEN")
+  requirements  String?
+  budgetRange   String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  applications  TravelBuddyApplication[]
+  destination   Destination?             @relation(fields: [destinationId], references: [id])
+  user          User                     @relation(fields: [userId], references: [id])
 }
 
 model TravelBuddyApplication {
-  id              String   @id @default(cuid())
-  postId          String
-  userId          String
-  message         String?
-  status          String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
-  createdAt       DateTime @default(now())
-  
-  post            TravelBuddyPost @relation(fields: [postId], references: [id])
-  user            User           @relation(fields: [userId], references: [id])
+  id        String          @id @default(cuid())
+  postId    String
+  userId    String
+  message   String?
+  status    String          @default("PENDING")
+  createdAt DateTime        @default(now())
+  post      TravelBuddyPost @relation(fields: [postId], references: [id])
+  user      User            @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId])
 }
 
 model CulinarySpot {
-  id          String   @id @default(cuid())
-  name        String
-  category    String   // Cafe, Restaurant, Warung, etc.
-  description String
-  priceRange  String   // $, 4893, 4893$, 48934893
-  address     String
-  lat         Float
-  lng         Float
-  image       String
-  images      String[] // Gallery
-  facilities  String[] // WiFi, Parking, AC, etc.
-  openingHours Json?   // { "Monday": "08:00-22:00", ... }
-  menuHighlights Json? // [{name: "Rendang", price: 25000, image: "url"}, ...]
-  contact     String?
-  rating      Float    @default(0)
-  totalReviews Int     @default(0)
-  isHalal     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String           @id @default(cuid())
+  name           String
+  category       String
+  description    String
+  priceRange     String
+  address        String
+  lat            Float
+  lng            Float
+  image          String
+  images         String[]
+  facilities     String[]
+  openingHours   Json?
+  menuHighlights Json?
+  contact        String?
+  rating         Float            @default(0)
+  totalReviews   Int              @default(0)
+  isHalal        Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  videoUrl       String?
+  status         String           @default("APPROVED") // PENDING, APPROVED, REJECTED
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id])
+  reviews        CulinaryReview[]
+  footprints     Footprint[]
+  menu           CulinaryMenu[]
+  orders         CulinaryOrder[]
+}
 
-  reviews     CulinaryReview[]
-  footprints  Footprint[]
+model CulinaryMenu {
+  id          String       @id @default(cuid())
+  spotId      String
+  name        String
+  description String
+  price       Int
+  image       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  spot        CulinarySpot @relation(fields: [spotId], references: [id])
+  orderItems  CulinaryOrderItem[]
 }
 
 model CulinaryReview {
-  id          String   @id @default(cuid())
-  spotId      String
-  userId      String
-  rating      Float
-  tasteRating Float?
-  serviceRating Float?
+  id             String       @id @default(cuid())
+  spotId         String
+  userId         String
+  rating         Float
+  tasteRating    Float?
+  serviceRating  Float?
   ambienceRating Float?
-  comment     String
-  photos      String[]
-  createdAt   DateTime @default(now())
+  comment        String
+  photos         String[]
+  createdAt      DateTime     @default(now())
+  spot           CulinarySpot @relation(fields: [spotId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+}
 
-  spot        CulinarySpot @relation(fields: [spotId], references: [id])
-  user        User         @relation(fields: [userId], references: [id])
+model CulinaryOrder {
+  id              String              @id @default(cuid())
+  userId          String
+  spotId          String
+  totalPrice      Int
+  status          String              @default("PENDING") // PENDING, CONFIRMED, READY, COMPLETED, CANCELLED
+  paymentStatus   String              @default("PENDING")
+  note            String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  user            User                @relation(fields: [userId], references: [id])
+  spot            CulinarySpot        @relation(fields: [spotId], references: [id])
+  items           CulinaryOrderItem[]
+}
+
+model CulinaryOrderItem {
+  id        String       @id @default(cuid())
+  orderId   String
+  menuId    String
+  quantity  Int
+  price     Int
+  note      String?
+  order     CulinaryOrder @relation(fields: [orderId], references: [id])
+  menu      CulinaryMenu  @relation(fields: [menuId], references: [id])
 }
 
 model Footprint {
-  id              String      @id @default(cuid())
-  userId          String
-  destinationId   String?
-  culinarySpotId  String?
-  eventId         String?
-  type            VisitType   @default(MANUAL)
-  visitDate       DateTime    @default(now())
-  duration        Int?        // In minutes
-  photos          String[]
-  rating          Float?
-  note            String?
-  context         String?     // solo, family, friends, etc.
-  lat             Float       // Captured location
-  lng             Float
-  pointsEarned    Int         @default(0)
+  id             String        @id @default(cuid())
+  userId         String
+  destinationId  String?
+  culinarySpotId String?
+  eventId        String?
+  type           VisitType     @default(MANUAL)
+  visitDate      DateTime      @default(now())
+  duration       Int?
+  photos         String[]
+  rating         Float?
+  note           String?
+  context        String?
+  lat            Float
+  lng            Float
+  pointsEarned   Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  culinarySpot   CulinarySpot? @relation(fields: [culinarySpotId], references: [id])
+  destination    Destination?  @relation(fields: [destinationId], references: [id])
+  event          Event?        @relation(fields: [eventId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+}
 
-  user            User        @relation(fields: [userId], references: [id])
-  destination     Destination? @relation(fields: [destinationId], references: [id])
-  culinarySpot    CulinarySpot? @relation(fields: [culinarySpotId], references: [id])
-  event           Event?      @relation(fields: [eventId], references: [id])
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+model Badge {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  image       String
+  category    String
+  threshold   Int
+  tier        BadgeTier   @default(BRONZE)
+  createdAt   DateTime    @default(now())
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String
+  badgeId    String
+  unlockedAt DateTime @default(now())
+  badge      Badge    @relation(fields: [badgeId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, badgeId])
+}
+
+model SouvenirVendor {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  image       String
+  location    String
+  videoUrl    String?
+  lat         Float?
+  lng         Float?
+  contact     String?
+  rating      Float             @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  status      String            @default("PENDING")
+  userId      String
+  orders      SouvenirOrder[]
+  products    SouvenirProduct[]
+  user        User              @relation(fields: [userId], references: [id])
+}
+
+model SouvenirProduct {
+  id          String              @id @default(cuid())
+  vendorId    String
+  name        String
+  description String
+  price       Int
+  images      String[]
+  category    String
+  stock       Int                 @default(0)
+  rating      Float               @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  orderItems  SouvenirOrderItem[]
+  vendor      SouvenirVendor      @relation(fields: [vendorId], references: [id])
+}
+
+model SouvenirOrder {
+  id              String              @id @default(cuid())
+  userId          String
+  vendorId        String
+  totalPrice      Int
+  status          String              @default("PENDING")
+  paymentStatus   String              @default("PENDING")
+  shippingAddress String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  user            User                @relation(fields: [userId], references: [id])
+  vendor          SouvenirVendor      @relation(fields: [vendorId], references: [id])
+  items           SouvenirOrderItem[]
+}
+
+model SouvenirOrderItem {
+  id        String          @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Int
+  order     SouvenirOrder   @relation(fields: [orderId], references: [id])
+  product   SouvenirProduct @relation(fields: [productId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
+  GUIDE
+  VENDOR
+  CULINARY
 }
 
 enum VisitType {
@@ -520,35 +631,10 @@ enum VisitType {
   MANUAL
 }
 
-model Badge {
-  id              String      @id @default(cuid())
-  name            String
-  description     String
-  image           String
-  category        String      // EXPLORER, CULINARY, NATURE, etc.
-  threshold       Int         // e.g., 5 for 5 visits
-  tier            BadgeTier   @default(BRONZE)
-  
-  users           UserBadge[]
-  createdAt       DateTime    @default(now())
-}
-
 enum BadgeTier {
   BRONZE
   SILVER
   GOLD
   DIAMOND
   LEGEND
-}
-
-model UserBadge {
-  id              String      @id @default(cuid())
-  userId          String
-  badgeId         String
-  unlockedAt      DateTime    @default(now())
-  
-  user            User        @relation(fields: [userId], references: [id])
-  badge           Badge       @relation(fields: [badgeId], references: [id])
-
-  @@unique([userId, badgeId])
 }

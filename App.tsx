@@ -32,6 +32,15 @@ import { CulinaryScreen } from './screens/CulinaryScreen';
 import { CulinaryDetailScreen } from './screens/CulinaryDetailScreen';
 import FootprintScreen from './screens/FootprintScreen';
 import BadgesScreen from './screens/BadgesScreen';
+import SouvenirMarketplaceScreen from './screens/SouvenirMarketplaceScreen';
+import { SouvenirDetailScreen } from './screens/SouvenirDetailScreen';
+import { SouvenirOrdersScreen } from './screens/SouvenirOrdersScreen';
+import { SouvenirVendorApplyScreen } from './screens/SouvenirVendorApplyScreen';
+import { SouvenirVendorDetailScreen } from './screens/SouvenirVendorDetailScreen';
+import { VendorDashboardScreen } from './screens/VendorDashboardScreen';
+import { CulinaryVendorApplyScreen } from './screens/CulinaryVendorApplyScreen';
+import { CulinaryDashboardScreen } from './screens/CulinaryDashboardScreen';
+import { CulinaryOrderHistoryScreen } from './screens/CulinaryOrderHistoryScreen';
 import JourneyMap from './components/JourneyMap';
 import BottomNav from './components/BottomNav';
 import SOSButton from './components/SOSButton';
@@ -47,6 +56,8 @@ const App: React.FC = () => {
   const [selectedBuddyPostId, setSelectedBuddyPostId] = useState<string | null>(null);
   const [selectedPublicUserId, setSelectedPublicUserId] = useState<string | null>(null);
   const [selectedCulinarySpotId, setSelectedCulinarySpotId] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [publicProfileReturnScreen, setPublicProfileReturnScreen] = useState<AppScreen>(AppScreen.HOME);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -135,6 +146,10 @@ const App: React.FC = () => {
       } else {
         setSelectedCulinarySpotId(data.id);
       }
+    } else if (screen === AppScreen.SOUVENIR_DETAIL && data) {
+      setSelectedProductId(data);
+    } else if (screen === AppScreen.SOUVENIR_VENDOR_DETAIL && data) {
+      setSelectedVendorId(data);
     }
     setCurrentScreen(screen);
   };
@@ -267,6 +282,36 @@ const App: React.FC = () => {
         return <FootprintScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.PROFILE)} />;
       case AppScreen.BADGES:
         return <BadgesScreen onBack={() => setCurrentScreen(AppScreen.FOOTPRINT)} />;
+      case AppScreen.SOUVENIR_MARKETPLACE:
+        return <SouvenirMarketplaceScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
+      case AppScreen.SOUVENIR_DETAIL:
+        return selectedProductId ? (
+          <SouvenirDetailScreen
+            productId={selectedProductId}
+            onNavigate={handleNavigate}
+            onBack={() => setCurrentScreen(AppScreen.SOUVENIR_MARKETPLACE)}
+          />
+        ) : <SouvenirMarketplaceScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
+      case AppScreen.SOUVENIR_VENDOR_DETAIL:
+        return selectedVendorId ? (
+          <SouvenirVendorDetailScreen
+            vendorId={selectedVendorId}
+            onNavigate={handleNavigate}
+            onBack={() => setCurrentScreen(AppScreen.SOUVENIR_MARKETPLACE)}
+          />
+        ) : <SouvenirMarketplaceScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
+      case AppScreen.SOUVENIR_ORDERS:
+        return <SouvenirOrdersScreen onBack={() => setCurrentScreen(AppScreen.PROFILE)} onNavigate={handleNavigate} />;
+      case AppScreen.SOUVENIR_VENDOR_APPLY:
+        return <SouvenirVendorApplyScreen onBack={() => handleNavigate(AppScreen.PROFILE)} />;
+      case AppScreen.VENDOR_DASHBOARD:
+        return <VendorDashboardScreen onBack={() => handleNavigate(AppScreen.PROFILE)} />;
+      case AppScreen.CULINARY_VENDOR_APPLY:
+        return <CulinaryVendorApplyScreen onBack={() => handleNavigate(AppScreen.PROFILE)} />;
+      case AppScreen.CULINARY_DASHBOARD:
+        return <CulinaryDashboardScreen onBack={() => handleNavigate(AppScreen.PROFILE)} />;
+      case AppScreen.CULINARY_ORDER_HISTORY:
+        return <CulinaryOrderHistoryScreen onBack={() => handleNavigate(AppScreen.PROFILE)} onNavigate={handleNavigate} />;
       default:
         return <HomeScreen onNavigate={handleNavigate} />;
     }
@@ -285,7 +330,9 @@ const App: React.FC = () => {
     currentScreen === AppScreen.BUDDY_POST_DETAIL ||
     currentScreen === AppScreen.GUIDE_DASHBOARD ||
     currentScreen === AppScreen.CREATE_PACKAGE ||
-    currentScreen === AppScreen.PUBLIC_PROFILE;
+    currentScreen === AppScreen.PUBLIC_PROFILE ||
+    currentScreen === AppScreen.SOUVENIR_VENDOR_APPLY ||
+    currentScreen === AppScreen.VENDOR_DASHBOARD;
 
   // Render Full Screen directly (no top/bottom bars)
   if (isFullScreen) {
@@ -299,7 +346,7 @@ const App: React.FC = () => {
   // Render Standard Screen (with top/bottom bars)
   return (
     <div className="relative min-h-screen max-w-md mx-auto bg-off-white shadow-2xl overflow-hidden flex flex-col">
-      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.CULINARY_DETAIL && (
+      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.CULINARY_DETAIL && currentScreen !== AppScreen.SOUVENIR_DETAIL && (
         <TopBar
           onSearch={(q) => {
             setSearchQuery(q);
@@ -314,11 +361,11 @@ const App: React.FC = () => {
         />
       )}
 
-      <main className={`flex-1 overflow-y-auto custom-scrollbar ${currentScreen === AppScreen.DETAIL || currentScreen === AppScreen.ARTICLE_DETAIL || currentScreen === AppScreen.CULINARY_DETAIL ? '' : 'pb-32 pt-20'}`}>
+      <main className={`flex-1 overflow-y-auto custom-scrollbar ${currentScreen === AppScreen.DETAIL || currentScreen === AppScreen.ARTICLE_DETAIL || currentScreen === AppScreen.CULINARY_DETAIL || currentScreen === AppScreen.SOUVENIR_DETAIL ? '' : 'pb-32 pt-20'}`}>
         {renderScreen()}
       </main>
 
-      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.CULINARY_DETAIL && (
+      {currentScreen !== AppScreen.DETAIL && currentScreen !== AppScreen.ARTICLE_DETAIL && currentScreen !== AppScreen.CULINARY_DETAIL && currentScreen !== AppScreen.SOUVENIR_DETAIL && (
         <BottomNav activeScreen={currentScreen} onNavigate={handleNavigate} />
       )}
 

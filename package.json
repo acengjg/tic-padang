@@ -17,6 +17,7 @@
     "@capacitor/android": "^5.7.8",
     "@capacitor/cli": "^5.7.8",
     "@capacitor/core": "^5.7.8",
+    "@prisma/client": "^5.22.0",
     "@types/multer": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",

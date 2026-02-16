@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tag, Gift, ExternalLink, Copy, Clock, RefreshCw } from 'lucide-react';
 import { apiService, getProxiedImageUrl } from '../client';
+import YouTubePlayer from '../components/YouTubePlayer';
 import { Promotion } from '../types';
 
 const PromoScreen: React.FC = () => {
@@ -49,8 +50,12 @@ const PromoScreen: React.FC = () => {
       <div className="space-y-6">
         {promotions.map((promo) => (
           <div key={promo.id} className="relative overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:row">
-            <div className="h-44 w-full relative">
-              <img src={getProxiedImageUrl(promo.image)} alt={promo.title} className="w-full h-full object-cover" />
+            <div className="h-full w-full relative">
+              {promo.videoUrl ? (
+                <YouTubePlayer url={promo.videoUrl} className="h-44 rounded-t-2xl" />
+              ) : (
+                <img src={getProxiedImageUrl(promo.image)} alt={promo.title} className="w-full h-full h-44 object-cover" />
+              )}
               <div className="absolute top-4 left-4 bg-chili-red text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg">
                 {promo.discount}
               </div>

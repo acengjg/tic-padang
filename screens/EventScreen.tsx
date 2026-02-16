@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Clock, ArrowLeft, Ticket, Share2, Heart, CalendarPlus, X } from 'lucide-react';
 import { apiService, getProxiedImageUrl } from '../client';
+import YouTubePlayer from '../components/YouTubePlayer';
 import { Event, AppScreen } from '../types';
 
 interface EventScreenProps {
@@ -89,7 +90,8 @@ const EventDetail: React.FC<{ event: Event; onBack: () => void }> = ({ event, on
 
                 <div className="space-y-3">
                     <h3 className="text-lg font-bold text-gray-800">Tentang Event</h3>
-                    <p className="text-gray-600 leading-relaxed text-sm text-justify">
+                    {event.videoUrl && <YouTubePlayer url={event.videoUrl} className="mb-4 rounded-2xl" />}
+                    <p className="text-gray-600 leading-relaxed text-sm text-justify whitespace-pre-wrap">
                         {event.description}
                     </p>
                 </div>

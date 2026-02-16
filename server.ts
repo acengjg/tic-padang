@@ -62,6 +62,39 @@ const requireAdmin = (req: any, res: any, next: NextFunction) => {
   }
 };
 
+const requireVendor = async (req: any, res: any, next: NextFunction) => {
+  if (req.user && (req.user.role === 'VENDOR' || req.user.role === 'ADMIN')) {
+    next();
+  } else {
+    try {
+      // Allow if the user has an APPROVED vendor profile, regardless of role
+      const vendor = await prisma.souvenirVendor.findFirst({ where: { userId: req.user.id } });
+      if (vendor && vendor.status === 'APPROVED') {
+        return next();
+      }
+      res.status(403).json({ error: 'Akses ditolak: Memerlukan hak akses Vendor' });
+    } catch {
+      res.status(500).json({ error: 'Gagal memverifikasi status vendor' });
+    }
+  }
+};
+
+const requireCulinary = async (req: any, res: any, next: NextFunction) => {
+  if (req.user && (req.user.role === 'CULINARY' || req.user.role === 'ADMIN')) {
+    next();
+  } else {
+    try {
+      const culinary = await prisma.culinarySpot.findFirst({ where: { userId: req.user.id } });
+      if (culinary && culinary.status === 'APPROVED') {
+        return next();
+      }
+      res.status(403).json({ error: 'Akses ditolak: Memerlukan hak akses Pengusaha Kuliner' });
+    } catch {
+      res.status(500).json({ error: 'Gagal memverifikasi status kuliner' });
+    }
+  }
+};
+
 app.get('/api/version', (req, res) => {
   res.json({ version: '1.0.1', timestamp: new Date().toISOString() });
 });
@@ -245,7 +278,7 @@ app.post('/api/admin/destinations', authenticateToken, requireAdmin, async (req:
   try {
     console.log('--- ADMIN POST DESTINATION ---');
     console.log('Raw Body:', JSON.stringify(req.body, null, 2));
-    const { name, category, rating, location, image, image360, audioNarration, hotspots, scenes, isEnhanced, description, price, lat, lng } = req.body;
+    const { name, category, rating, location, image, image360, audioNarration, videoUrl, hotspots, scenes, isEnhanced, description, price, lat, lng } = req.body;
     const dest = await prisma.destination.create({
       data: {
         name,
@@ -255,6 +288,7 @@ app.post('/api/admin/destinations', authenticateToken, requireAdmin, async (req:
         image,
         image360,
         audioNarration,
+        videoUrl,
         hotspots: hotspots ? (typeof hotspots === 'string' ? JSON.parse(hotspots) : hotspots) : undefined,
         scenes: scenes ? (typeof scenes === 'string' ? JSON.parse(scenes) : scenes) : undefined,
         isEnhanced: Boolean(isEnhanced),
@@ -274,7 +308,7 @@ app.put('/api/admin/destinations/:id', authenticateToken, requireAdmin, async (r
   try {
     console.log('--- ADMIN PUT DESTINATION ---', req.params.id);
     console.log('Raw Body:', JSON.stringify(req.body, null, 2));
-    const { name, category, rating, location, image, image360, audioNarration, hotspots, scenes, isEnhanced, description, price, lat, lng } = req.body;
+    const { name, category, rating, location, image, image360, audioNarration, videoUrl, hotspots, scenes, isEnhanced, description, price, lat, lng } = req.body;
     const dest = await prisma.destination.update({
       where: { id: req.params.id },
       data: {
@@ -285,6 +319,7 @@ app.put('/api/admin/destinations/:id', authenticateToken, requireAdmin, async (r
         image,
         image360,
         audioNarration,
+        videoUrl,
         hotspots: hotspots ? (typeof hotspots === 'string' ? JSON.parse(hotspots) : hotspots) : undefined,
         scenes: scenes ? (typeof scenes === 'string' ? JSON.parse(scenes) : scenes) : undefined,
         isEnhanced: Boolean(isEnhanced),
@@ -323,13 +358,14 @@ app.get('/api/admin/events', authenticateToken, requireAdmin, async (req: any, r
 
 app.post('/api/admin/events', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { name, date, location, image, description, price } = req.body;
+    const { name, date, location, image, videoUrl, description, price } = req.body;
     const event = await prisma.event.create({
       data: {
         name,
         date: new Date(date),
         location,
         image,
+        videoUrl,
         description,
         price
       }
@@ -342,7 +378,7 @@ app.post('/api/admin/events', authenticateToken, requireAdmin, async (req: any, 
 
 app.put('/api/admin/events/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { name, date, location, image, description, price } = req.body;
+    const { name, date, location, image, videoUrl, description, price } = req.body;
     const event = await prisma.event.update({
       where: { id: req.params.id },
       data: {
@@ -350,6 +386,7 @@ app.put('/api/admin/events/:id', authenticateToken, requireAdmin, async (req: an
         date: new Date(date),
         location,
         image,
+        videoUrl,
         description,
         price
       }
@@ -427,9 +464,9 @@ app.get('/api/admin/articles', authenticateToken, requireAdmin, async (req: any,
 
 app.post('/api/admin/articles', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { title, content, image, category, author } = req.body;
+    const { title, content, image, videoUrl, category, author } = req.body;
     const article = await prisma.article.create({
-      data: { title, content, image, category, author: author || 'Admin' }
+      data: { title, content, image, videoUrl, category, author: author || 'Admin' }
     });
     res.status(201).json(article);
   } catch (error) {
@@ -439,10 +476,10 @@ app.post('/api/admin/articles', authenticateToken, requireAdmin, async (req: any
 
 app.put('/api/admin/articles/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { title, content, image, category, author } = req.body;
+    const { title, content, image, videoUrl, category, author } = req.body;
     const article = await prisma.article.update({
       where: { id: String(req.params.id) },
-      data: { title, content, image, category, author }
+      data: { title, content, image, videoUrl, category, author }
     });
     res.json(article);
   } catch (error) {
@@ -464,6 +501,7 @@ app.delete('/api/admin/articles/:id', authenticateToken, requireAdmin, async (re
 app.get('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
     const spots = await prisma.culinarySpot.findMany({
+      include: { user: { select: { name: true, email: true } } },
       orderBy: { createdAt: 'desc' }
     });
     res.json(spots);
@@ -475,7 +513,7 @@ app.get('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (req
 app.post('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
     console.log('Received Culinary Spot Data:', JSON.stringify(req.body, null, 2));
-    const { name, category, description, priceRange, address, lat, lng, image, images, facilities, openingHours, menuHighlights, contact, isHalal } = req.body;
+    const { name, category, description, priceRange, address, lat, lng, image, images, videoUrl, facilities, openingHours, menuHighlights, contact, isHalal } = req.body;
 
     const missingFields = [];
     if (!name) missingFields.push('name');
@@ -503,6 +541,7 @@ app.post('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (re
       lng: typeof lng === 'string' ? parseFloat(lng) : Number(lng),
       image,
       images: images || [],
+      videoUrl,
       facilities: facilities || [],
       openingHours: openingHours || {},
       menuHighlights: menuHighlights || [],
@@ -525,7 +564,7 @@ app.post('/api/admin/culinary-spots', authenticateToken, requireAdmin, async (re
 
 app.put('/api/admin/culinary-spots/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
   try {
-    const { name, category, description, priceRange, address, lat, lng, image, images, facilities, openingHours, menuHighlights, contact, isHalal } = req.body;
+    const { name, category, description, priceRange, address, lat, lng, image, images, videoUrl, facilities, openingHours, menuHighlights, contact, isHalal } = req.body;
 
     const data: any = {};
     if (name !== undefined) data.name = name;
@@ -537,6 +576,7 @@ app.put('/api/admin/culinary-spots/:id', authenticateToken, requireAdmin, async 
     if (lng !== undefined) data.lng = parseFloat(lng);
     if (image !== undefined) data.image = image;
     if (images !== undefined) data.images = images;
+    if (videoUrl !== undefined) data.videoUrl = videoUrl;
     if (facilities !== undefined) data.facilities = facilities;
     if (openingHours !== undefined) data.openingHours = openingHours;
     if (menuHighlights !== undefined) data.menuHighlights = menuHighlights;
@@ -628,6 +668,91 @@ app.post('/api/culinary-spots/:id/reviews', authenticateToken, async (req: any, 
   } catch (error) {
     console.error('Submit Culinary Review Error:', error);
     res.status(500).json({ error: 'Gagal mengirim ulasan' });
+  }
+});
+
+// --- SOUVENIR MARKETPLACE ROUTES ---
+
+app.get('/api/souvenirs/vendors', async (req: Request, res: Response) => {
+  try {
+    const vendors = await prisma.souvenirVendor.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json(vendors);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data toko oleh-oleh' });
+  }
+});
+
+app.get('/api/souvenirs/products', async (req: Request, res: Response) => {
+  try {
+    const { category, vendorId } = req.query;
+    const where: any = {};
+    if (category && category !== 'Semua') where.category = String(category);
+    if (vendorId) where.vendorId = String(vendorId);
+
+    const products = await prisma.souvenirProduct.findMany({
+      where,
+      include: { vendor: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data produk oleh-oleh' });
+  }
+});
+
+app.get('/api/souvenirs/products/:id', async (req: Request, res: Response) => {
+  try {
+    const product = await prisma.souvenirProduct.findUnique({
+      where: { id: String(req.params.id) },
+      include: { vendor: true }
+    });
+    if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan' });
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil detail produk' });
+  }
+});
+
+// Admin Souvenirs
+app.post('/api/admin/souvenirs/vendors', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const { name, description, image, location, lat, lng, contact } = req.body;
+    const vendor = await prisma.souvenirVendor.create({
+      data: {
+        name,
+        description,
+        image,
+        location,
+        lat: lat ? parseFloat(lat) : null,
+        lng: lng ? parseFloat(lng) : null,
+        contact
+      }
+    });
+    res.status(201).json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal membuat toko oleh-oleh' });
+  }
+});
+
+app.post('/api/admin/souvenirs/products', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const { vendorId, name, description, price, images, category, stock } = req.body;
+    const product = await prisma.souvenirProduct.create({
+      data: {
+        vendorId,
+        name,
+        description,
+        price: Number(price),
+        images: images || [],
+        category,
+        stock: Number(stock) || 0
+      }
+    });
+    res.status(201).json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal membuat produk oleh-oleh' });
   }
 });
 
@@ -727,9 +852,11 @@ const fetchSocialImage = async (originalUrl: string): Promise<{ buffer: Buffer, 
 
   // For Instagram, we first try the media URL as it's the most direct
   let fetchUrl = fixedUrl;
-  const isInstagram = fixedUrl.includes('instagram.com/p/') ||
-    fixedUrl.includes('instagram.com/reels/') ||
-    fixedUrl.includes('instagram.com/tv/');
+  const isInstagramMain = fixedUrl.includes('instagram.com/') ||
+    fixedUrl.includes('instagr.am/') ||
+    fixedUrl.includes('ig.me/');
+  const isInstagramCDN = fixedUrl.includes('cdninstagram.com');
+  const isInstagram = isInstagramMain && !isInstagramCDN;
 
   // Try multiple variations for Instagram media
   if (isInstagram && !fixedUrl.includes('media/?size=l')) {
@@ -757,7 +884,7 @@ const fetchSocialImage = async (originalUrl: string): Promise<{ buffer: Buffer, 
     } catch (e) { }
   }
 
-  const isSocialMedia = isInstagram || isFacebook || fixedUrl.includes('fbcdn.net');
+  const isSocialMedia = isInstagram || isInstagramCDN || isFacebook || fixedUrl.includes('fbcdn.net');
 
   logProxy(`Fetching: ${fetchUrl} (Social: ${isSocialMedia})`);
 
@@ -1592,7 +1719,7 @@ app.post('/api/packages', authenticateToken, async (req: any, res: Response) => 
     const {
       title, category, description, duration, durationType, maxParticipants,
       basePrice, meetingPoint, meetingPointLat, meetingPointLng,
-      itinerary, inclusions, exclusions, requirements, photos
+      itinerary, inclusions, exclusions, requirements, photos, videoUrl
     } = req.body;
 
     const pkg = await prisma.tourPackage.create({
@@ -1612,7 +1739,8 @@ app.post('/api/packages', authenticateToken, async (req: any, res: Response) => 
         inclusions: inclusions || [],
         exclusions: exclusions || [],
         requirements: requirements || {},
-        photos: photos || []
+        photos: photos || [],
+        videoUrl
       }
     });
 
@@ -2053,8 +2181,9 @@ app.put('/api/buddies/applications/:id', authenticateToken, async (req: any, res
 
 app.get('/api/culinary-spots', async (req: Request, res: Response) => {
   try {
-    const { category, search } = req.query;
+    const { category, search, all } = req.query;
     const where: any = {};
+    if (!all) where.status = 'APPROVED';
     if (category && category !== 'Semua') where.category = String(category);
     if (search) {
       where.OR = [
@@ -2066,7 +2195,10 @@ app.get('/api/culinary-spots', async (req: Request, res: Response) => {
 
     const spots = await prisma.culinarySpot.findMany({
       where,
-      orderBy: { rating: 'desc' }
+      orderBy: { rating: 'desc' },
+      include: {
+        menu: true
+      }
     });
     res.json(spots);
   } catch (error) {
@@ -2079,6 +2211,8 @@ app.get('/api/culinary-spots/:id', async (req: Request, res: Response) => {
     const spot = await prisma.culinarySpot.findUnique({
       where: { id: String(req.params.id) },
       include: {
+        menu: true,
+        user: { select: { name: true, avatar: true } },
         reviews: {
           include: { user: { select: { name: true, avatar: true } } },
           orderBy: { createdAt: 'desc' },
@@ -2095,6 +2229,761 @@ app.get('/api/culinary-spots/:id', async (req: Request, res: Response) => {
 
 
 
+
+// --- SOUVENIR MARKETPLACE API ---
+
+app.get('/api/souvenirs/vendors', async (req: Request, res: Response) => {
+  try {
+    const vendors = await prisma.souvenirVendor.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json(vendors);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data toko oleh-oleh' });
+  }
+});
+
+app.get('/api/souvenirs/vendors/:id', async (req: Request, res: Response) => {
+  try {
+    const vendor = await prisma.souvenirVendor.findUnique({
+      where: { id: String(req.params.id) },
+      include: { products: true }
+    });
+    if (!vendor) return res.status(404).json({ error: 'Toko tidak ditemukan' });
+    res.json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil detail toko' });
+  }
+});
+
+app.get('/api/souvenirs/products', async (req: Request, res: Response) => {
+  try {
+    const vendorId = req.query.vendorId as string | undefined;
+    const category = req.query.category as string | undefined;
+    const where: any = {};
+    if (vendorId) where.vendorId = vendorId;
+    if (category && category !== 'Semua') where.category = category;
+
+    const products = await prisma.souvenirProduct.findMany({
+      where,
+      include: { vendor: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data produk' });
+  }
+});
+
+app.post('/api/souvenirs/orders', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const { vendorId, items, totalPrice, shippingAddress } = req.body;
+    const userId = req.user.id;
+
+    // Check stock first
+    for (const item of items) {
+      const product = await prisma.souvenirProduct.findUnique({ where: { id: item.productId } });
+      if (!product || product.stock < item.quantity) {
+        return res.status(400).json({ error: `Stok tidak mencukupi untuk produk ${product?.name || item.productId}` });
+      }
+    }
+
+    const order = await prisma.souvenirOrder.create({
+      data: {
+        userId,
+        vendorId,
+        totalPrice: Number(totalPrice),
+        shippingAddress,
+        items: {
+          create: items.map((item: any) => ({
+            productId: item.productId,
+            quantity: Number(item.quantity),
+            price: Number(item.price)
+          }))
+        }
+      },
+      include: { items: { include: { product: true } } }
+    });
+
+    // Reduce stock
+    for (const item of items) {
+      await prisma.souvenirProduct.update({
+        where: { id: item.productId },
+        data: { stock: { decrement: Number(item.quantity) } }
+      });
+    }
+
+    res.status(201).json(order);
+  } catch (error) {
+    console.error('Create Souvenir Order Error:', error);
+    res.status(500).json({ error: 'Gagal membuat pesanan oleh-oleh' });
+  }
+});
+
+app.get('/api/souvenirs/orders/user/:userId', authenticateToken, async (req: any, res: Response) => {
+  try {
+    if (req.user.id !== req.params.userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    const orders = await prisma.souvenirOrder.findMany({
+      where: { userId: req.params.userId },
+      include: {
+        vendor: true,
+        items: { include: { product: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil riwayat pesanan' });
+  }
+});
+
+// Admin routes
+app.get('/api/admin/souvenirs/orders', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const orders = await prisma.souvenirOrder.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        vendor: true,
+        items: { include: { product: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil daftar pesanan' });
+  }
+});
+
+app.patch('/api/admin/souvenirs/orders/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const { status, paymentStatus } = req.body;
+    const order = await prisma.souvenirOrder.update({
+      where: { id: req.params.id },
+      data: { status, paymentStatus }
+    });
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memperbarui status pesanan' });
+  }
+});
+
+// Vendor Registration & Verification
+app.post('/api/souvenirs/vendors/apply', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const { name, description, image, location, contact } = req.body;
+    const userId = req.user.id;
+
+    // Allow multiple vendors per user
+    // const existing = await prisma.souvenirVendor.findUnique({ where: { userId } });
+    // if (existing) return res.status(400).json({ error: 'Anda sudah mendaftar sebagai vendor' });
+
+    const vendor = await prisma.souvenirVendor.create({
+      data: {
+        userId,
+        name,
+        description,
+        image,
+        location,
+        contact,
+        status: 'PENDING'
+      }
+    });
+
+    res.status(201).json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengajukan pendaftaran vendor' });
+  }
+});
+
+app.get('/api/user/businesses', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const [culinarySpots, souvenirVendors] = await Promise.all([
+      prisma.culinarySpot.findMany({ where: { userId: req.user.id } }),
+      prisma.souvenirVendor.findMany({ where: { userId: req.user.id } })
+    ]);
+    res.json({ culinarySpots, souvenirVendors });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data bisnis' });
+  }
+});
+
+app.get('/api/admin/souvenirs/vendors', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const vendors = await prisma.souvenirVendor.findMany({
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(vendors);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil daftar vendor' });
+  }
+});
+
+app.patch('/api/admin/souvenirs/vendors/:id/verify', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const { status } = req.body; // APPROVED or REJECTED
+    const vendor = await prisma.souvenirVendor.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
+
+    if (status === 'APPROVED') {
+      await prisma.user.update({
+        where: { id: vendor.userId },
+        data: { role: 'VENDOR' }
+      });
+    }
+
+    res.json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memverifikasi vendor' });
+  }
+});
+
+// Vendor Dashboard Routes
+app.get('/api/vendor/souvenirs/profile', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const vendorId = req.query.vendorId as string;
+    const vendor = await prisma.souvenirVendor.findFirst({
+      where: {
+        userId: req.user.id,
+        id: vendorId || undefined
+      }
+    });
+    res.json(vendor);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil profil vendor' });
+  }
+});
+
+app.put('/api/vendor/souvenirs/profile', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const { name, description, location, contact, image, videoUrl, lat, lng } = req.body;
+    console.log('Update Vendor Profile Request:', { userId: req.user.id, body: req.body });
+    const latVal = (lat !== undefined && lat !== null && !isNaN(parseFloat(lat))) ? parseFloat(lat) : null;
+    const lngVal = (lng !== undefined && lng !== null && !isNaN(parseFloat(lng))) ? parseFloat(lng) : null;
+
+
+
+    let vendor;
+    const vendorId = req.body.id;
+
+    if (vendorId) {
+      // Update specific vendor
+      vendor = await prisma.souvenirVendor.update({
+        where: { id: vendorId },
+        data: {
+          name, description, location, contact, image, videoUrl,
+          lat: latVal, lng: lngVal
+        }
+      });
+    } else {
+      // Fallback: Try to find first existing or create new if none
+      const existing = await prisma.souvenirVendor.findFirst({ where: { userId: req.user.id } });
+
+      if (existing) {
+        vendor = await prisma.souvenirVendor.update({
+          where: { id: existing.id },
+          data: {
+            name, description, location, contact, image, videoUrl,
+            lat: latVal, lng: lngVal
+          }
+        });
+      } else {
+        vendor = await prisma.souvenirVendor.create({
+          data: {
+            userId: req.user.id,
+            name: name || "Toko Baru",
+            description: description || "-",
+            location: location || "-",
+            image: image || "https://placehold.co/400",
+            contact,
+            videoUrl,
+            lat: latVal,
+            lng: lngVal,
+            status: "APPROVED" // Auto-approve if created this way?
+          }
+        });
+      }
+    }
+    res.json(vendor);
+  } catch (error: any) {
+    console.error('Error updating vendor profile:', error);
+    res.status(500).json({ error: `Gagal memperbarui profil vendor: ${error.message}` });
+  }
+});
+
+app.get('/api/vendor/souvenirs/products', authenticateToken, requireVendor, async (req: any, res: Response) => {
+  try {
+    const vendorId = req.query.vendorId as string;
+    const vendor = await prisma.souvenirVendor.findFirst({
+      where: {
+        userId: req.user.id,
+        id: vendorId || undefined
+      }
+    });
+    if (!vendor) return res.status(404).json({ error: 'Vendor tidak ditemukan' });
+
+    const products = await prisma.souvenirProduct.findMany({
+      where: { vendorId: vendor.id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil produk vendor' });
+  }
+});
+
+app.post('/api/vendor/souvenirs/products', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const vendorId = req.body.vendorId;
+    const vendor = await prisma.souvenirVendor.findFirst({
+      where: {
+        userId: req.user.id,
+        id: vendorId || undefined
+      }
+    });
+    if (!vendor) return res.status(404).json({ error: 'Vendor tidak ditemukan. Silakan lengkapi profil toko terlebih dahulu.' });
+
+    console.log('Create Product Request:', { vendorId: vendor.id, body: req.body });
+    const product = await prisma.souvenirProduct.create({
+      data: { ...req.body, vendorId: vendor.id }
+    });
+    res.status(201).json(product);
+  } catch (error: any) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ error: `Gagal menambah produk: ${error.message}` });
+  }
+});
+
+// --- CULINARY VENDOR ROUTES ---
+
+app.post('/api/culinary/apply', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const { name, category, description, priceRange, address, lat, lng, image, contact } = req.body;
+    const userId = req.user.id;
+
+
+
+    // Allow multiple culinary spots
+    // const existing = await prisma.culinarySpot.findUnique({ where: { userId } });
+    // if (existing) return res.status(400).json({ error: 'Anda sudah mendaftar sebagai pengusaha kuliner' });
+
+    const spot = await prisma.culinarySpot.create({
+      data: {
+        name, category, description, priceRange, address, lat, lng, image, contact,
+        userId,
+        status: 'PENDING'
+      }
+    });
+    res.status(201).json(spot);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mendaftar usaha kuliner' });
+  }
+});
+
+app.put('/api/vendor/culinary/profile', authenticateToken, requireCulinary, async (req: any, res: Response) => {
+  try {
+    const { id, menu, user, reviews, footprints, createdAt, updatedAt, ...updateData } = req.body;
+
+    // Explicitly convert numeric fields
+    if (updateData.lat !== undefined) updateData.lat = parseFloat(updateData.lat);
+    if (updateData.lng !== undefined) updateData.lng = parseFloat(updateData.lng);
+
+    const matchWhere: any = { userId: req.user.id };
+    if (id) matchWhere.id = id;
+
+    // First find the record to get ID if not provided
+    const existing = await prisma.culinarySpot.findFirst({ where: matchWhere });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Tempat kuliner tidak ditemukan' });
+    }
+
+    const spot = await prisma.culinarySpot.update({
+      where: { id: existing.id },
+      data: updateData
+    });
+    res.json(spot);
+  } catch (error) {
+    console.error('Update Profile Error:', error);
+    res.status(500).json({ error: 'Gagal memperbarui profil kuliner: ' + (error instanceof Error ? error.message : 'Unknown error') });
+  }
+});
+
+app.get('/api/admin/culinary/pending', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const spots = await prisma.culinarySpot.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { name: true, email: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(spots);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil daftar pendaftaran kuliner' });
+  }
+});
+
+app.patch('/api/admin/culinary/:id/verify', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const { status } = req.body;
+    const spot = await prisma.culinarySpot.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
+
+    if (status === 'APPROVED' && spot.userId) {
+      await prisma.user.update({
+        where: { id: spot.userId },
+        data: { role: 'CULINARY' }
+      });
+    }
+
+    res.json(spot);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memverifikasi usaha kuliner' });
+  }
+});
+
+app.get('/api/vendor/culinary/profile', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const spotId = req.query.spotId as string;
+    const spot = await prisma.culinarySpot.findFirst({
+      where: {
+        userId: req.user.id,
+        id: spotId || undefined
+      },
+      include: { menu: true }
+    });
+    res.json(spot);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil profil kuliner' });
+  }
+});
+
+app.post('/api/vendor/culinary/menu', authenticateToken, requireCulinary, async (req: any, res: Response) => {
+  try {
+    const { id, spotId, ...menuData } = req.body;
+    const spot = await prisma.culinarySpot.findFirst({
+      where: {
+        userId: req.user.id,
+        id: spotId || undefined
+      }
+    });
+    if (!spot) return res.status(404).json({ error: 'Usaha kuliner tidak ditemukan' });
+
+
+    // Explicitly convert price to Int
+    if (menuData.price !== undefined) menuData.price = Math.round(parseFloat(menuData.price));
+
+    const item = await prisma.culinaryMenu.create({
+      data: { ...menuData, spotId: spot.id }
+    });
+    res.status(201).json(item);
+  } catch (error) {
+    console.error('Add Menu Error:', error);
+    res.status(500).json({ error: 'Gagal menambah menu: ' + (error instanceof Error ? error.message : 'Unknown error') });
+  }
+});
+
+app.put('/api/vendor/culinary/menu/:id', authenticateToken, requireCulinary, async (req: any, res: Response) => {
+  try {
+    const { id, spotId, ...menuData } = req.body;
+
+    // Explicitly convert price to Int
+    if (menuData.price !== undefined) menuData.price = Math.round(parseFloat(menuData.price));
+
+    const item = await prisma.culinaryMenu.update({
+      where: { id: req.params.id },
+      data: menuData
+    });
+    res.json(item);
+  } catch (error) {
+    console.error('Update Menu Error:', error);
+    res.status(500).json({ error: 'Gagal memperbarui menu: ' + (error instanceof Error ? error.message : 'Unknown error') });
+  }
+});
+
+app.delete('/api/vendor/culinary/menu/:id', authenticateToken, requireCulinary, async (req: any, res: Response) => {
+  try {
+    await prisma.culinaryMenu.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Menu berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal menghapus menu' });
+  }
+});
+
+// --- CULINARY ORDER ROUTES ---
+
+// Create Order (User)
+app.post('/api/culinary/order', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const { spotId, items, note } = req.body;
+    let totalPrice = 0;
+
+    // Validate items and calculate price
+    const orderItemsData = [];
+    for (const item of items) {
+      const menu = await prisma.culinaryMenu.findUnique({ where: { id: item.menuId } });
+      if (!menu) throw new Error(`Menu with id ${item.menuId} not found`);
+      const itemTotal = menu.price * item.quantity;
+      totalPrice += itemTotal;
+      orderItemsData.push({
+        menuId: item.menuId,
+        quantity: item.quantity,
+        price: menu.price,
+        note: item.note
+      });
+    }
+
+    const order = await prisma.culinaryOrder.create({
+      data: {
+        userId: req.user.id,
+        spotId,
+        totalPrice,
+        note,
+        items: {
+          create: orderItemsData
+        }
+      },
+      include: { items: true }
+    });
+
+    res.status(201).json(order);
+  } catch (error) {
+    console.error('Create Culinary Order Error:', error);
+    res.status(500).json({ error: 'Gagal membuat pesanan kuliner' });
+  }
+});
+
+// Get Vendor Orders (Vendor)
+app.get('/api/vendor/culinary/orders', authenticateToken, requireCulinary, async (req: any, res: Response) => {
+  try {
+    const spotId = req.query.spotId as string;
+
+    // Verify ownership
+    const spot = await prisma.culinarySpot.findFirst({
+      where: {
+        userId: req.user.id,
+        id: spotId || undefined
+      }
+    });
+
+    if (!spot) return res.status(403).json({ error: 'Akses ditolak' });
+
+    const orders = await prisma.culinaryOrder.findMany({
+      where: { spotId: spot.id },
+      include: {
+        user: { select: { name: true, phone: true, avatar: true } },
+        items: { include: { menu: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(orders);
+  } catch (error) {
+    console.error('Get Vendor Orders Error:', error);
+    res.status(500).json({ error: 'Gagal mengambil pesanan kuliner' });
+  }
+});
+
+// Update Order Status (Vendor)
+app.patch('/api/vendor/culinary/orders/:id/status', authenticateToken, requireCulinary, async (req: any, res: Response) => {
+  try {
+    const { status } = req.body;
+    // Verify ownership via spot -> user
+    const order = await prisma.culinaryOrder.findUnique({
+      where: { id: req.params.id },
+      include: { spot: true }
+    });
+
+    if (!order || !order.spot.userId || order.spot.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    const updatedOrder = await prisma.culinaryOrder.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memperbarui status pesanan' });
+  }
+});
+
+// Get User Culinary Orders (User)
+app.get('/api/culinary/orders/user', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const orders = await prisma.culinaryOrder.findMany({
+      where: { userId: req.user.id },
+      include: {
+        spot: { select: { name: true, image: true, id: true } },
+        items: { include: { menu: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil riwayat pesanan kuliner' });
+  }
+});
+
+app.put('/api/vendor/souvenirs/products/:id', authenticateToken, requireVendor, async (req: any, res: Response) => {
+  try {
+    // We can just check ownership via the product -> vendor -> userId chain or easier:
+    // Fetch product, check if product.vendor.userId === req.user.id
+    const product = await prisma.souvenirProduct.findUnique({
+      where: { id: req.params.id },
+      include: { vendor: true }
+    });
+
+    if (!product || product.vendor.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    // allow update
+    const updatedProduct = await prisma.souvenirProduct.update({
+      where: { id: req.params.id },
+      data: req.body
+    });
+    res.json(updatedProduct);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memperbarui produk' });
+  }
+});
+
+app.delete('/api/vendor/souvenirs/products/:id', authenticateToken, requireVendor, async (req: any, res: Response) => {
+  try {
+    const product = await prisma.souvenirProduct.findUnique({
+      where: { id: req.params.id },
+      include: { vendor: true }
+    });
+
+    if (!product || product.vendor.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    await prisma.souvenirProduct.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Produk berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal menghapus produk' });
+  }
+});
+
+app.get('/api/vendor/souvenirs/orders', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const vendorId = req.query.vendorId as string;
+    const vendor = await prisma.souvenirVendor.findFirst({
+      where: {
+        userId: req.user.id,
+        id: vendorId || undefined
+      }
+    });
+    if (!vendor) return res.status(404).json({ error: 'Vendor tidak ditemukan' });
+
+    const orders = await prisma.souvenirOrder.findMany({
+      where: { vendorId: vendor.id },
+      include: {
+        user: { select: { name: true, email: true, phone: true } },
+        items: { include: { product: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil daftar pesanan' });
+  }
+});
+
+app.patch('/api/vendor/souvenirs/orders/:id', authenticateToken, requireVendor, async (req: any, res: Response) => {
+  try {
+    const order = await prisma.souvenirOrder.findUnique({
+      where: { id: req.params.id },
+      include: { vendor: true }
+    });
+
+    if (!order || order.vendor.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Akses ditolak' });
+    }
+
+    const updatedOrder = await prisma.souvenirOrder.update({
+      where: { id: req.params.id },
+      data: { status: req.body.status }
+    });
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memperbarui status pesanan' });
+  }
+});
+
+app.delete('/api/admin/souvenirs/vendors/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    await prisma.souvenirVendor.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Vendor berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal menghapus vendor' });
+  }
+});
+
+app.post('/api/admin/souvenirs/products', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const productData = { ...req.body };
+    if (productData.price) productData.price = Number(productData.price);
+    if (productData.stock) productData.stock = Number(productData.stock);
+
+    const product = await prisma.souvenirProduct.create({ data: productData });
+    res.status(201).json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal membuat produk' });
+  }
+});
+
+app.put('/api/admin/souvenirs/products/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const productData = { ...req.body };
+    delete productData.id;
+    if (productData.price) productData.price = Number(productData.price);
+    if (productData.stock) productData.stock = Number(productData.stock);
+
+    const product = await prisma.souvenirProduct.update({
+      where: { id: req.params.id },
+      data: productData
+    });
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal memperbarui produk' });
+  }
+});
+
+app.delete('/api/admin/souvenirs/products/:id', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    await prisma.souvenirProduct.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Produk berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal menghapus produk' });
+  }
+});
+
+// --- ADMIN NOTIFICATIONS ---
+app.get('/api/admin/notifications', authenticateToken, requireAdmin, async (req: any, res: Response) => {
+  try {
+    const [pendingGuides, pendingCulinary, pendingSouvenir] = await Promise.all([
+      prisma.guide.count({ where: { status: 'PENDING' } }),
+      prisma.culinarySpot.count({ where: { status: 'PENDING' } }),
+      prisma.souvenirVendor.count({ where: { status: 'PENDING' } })
+    ]);
+
+    res.json({
+      guides: pendingGuides,
+      culinary: pendingCulinary,
+      souvenirVendors: pendingSouvenir
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil notifikasi admin' });
+  }
+});
 
 // --- SERVE FRONTEND (PRODUCTION) ---
 

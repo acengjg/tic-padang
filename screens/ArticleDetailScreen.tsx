@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Article } from '../types';
 import { apiService, getProxiedImageUrl } from '../client';
+import YouTubePlayer from '../components/YouTubePlayer';
 import { ChevronLeft, Calendar, Share2, Clock, Bookmark } from 'lucide-react';
 
 interface ArticleDetailScreenProps {
@@ -105,6 +106,7 @@ const ArticleDetailScreen: React.FC<ArticleDetailScreenProps> = ({ article, onBa
 
                 {/* Article Body */}
                 <div className="prose prose-sm max-w-none">
+                    {article.videoUrl && <YouTubePlayer url={article.videoUrl} className="mb-6 rounded-3xl" />}
                     <p className="text-gray-600 leading-relaxed text-[15px] font-medium whitespace-pre-wrap">
                         {article.content}
                     </p>

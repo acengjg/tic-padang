@@ -370,8 +370,8 @@ export const CulinaryScreen: React.FC<CulinaryScreenProps> = ({ onNavigate, onBa
     const getPriceRange = (spot: CulinarySpot) => {
         if (spot.priceRange && spot.priceRange.includes('Rp') && !spot.priceRange.includes('Rp Rp')) return spot.priceRange;
 
-        const menus = typeof spot.menuHighlights === 'string' ? JSON.parse(spot.menuHighlights) : (spot.menuHighlights || []);
-        const prices = Array.isArray(menus) ? menus.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0) : [];
+        const menuItems = spot.menu || [];
+        const prices = menuItems.map((m: any) => parseInt(m.price) || 0).filter((p: number) => p > 0);
 
         if (prices.length > 0) {
             const min = Math.min(...prices);

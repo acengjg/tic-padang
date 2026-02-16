@@ -5,6 +5,7 @@ import {
     ArrowRight, ShieldCheck, Info
 } from 'lucide-react';
 import { apiService } from '../client';
+import YouTubePlayer from '../components/YouTubePlayer';
 import { TourPackage, AppScreen } from '../types';
 
 interface TourPackageDetailScreenProps {
@@ -184,7 +185,8 @@ const TourPackageDetailScreen: React.FC<TourPackageDetailScreenProps> = ({ packa
                         {/* Description */}
                         <section>
                             <h3 className="text-lg font-black text-gray-800 mb-3">Tentang Pengalaman Ini</h3>
-                            <p className="text-sm text-gray-600 leading-relaxed font-medium">
+                            {pkg.videoUrl && <YouTubePlayer url={pkg.videoUrl} className="mb-6 rounded-3xl" />}
+                            <p className="text-sm text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
                                 {pkg.description}
                             </p>
                         </section>

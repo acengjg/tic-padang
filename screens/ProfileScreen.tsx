@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import {
   User, Heart, Settings, HelpCircle, LogOut, ChevronRight,
   Award, Map, Bookmark, MessageSquare, ChevronLeft, Star, Clock,
-  Shield, RefreshCw, XCircle, ArrowRight, CheckCircle2
-} from 'lucide-react'; // This was likely a typo from previous edit or I should check the import
+  Shield, RefreshCw, XCircle, ArrowRight, CheckCircle2, ShoppingBag, Store, Utensils, LayoutDashboard
+} from 'lucide-react';
 import { AppScreen } from '../types';
-import { apiService } from '../client';
+import { apiService, getProxiedImageUrl } from '../client';
 
 import { useLanguage } from '../context/LanguageContext';
 
@@ -20,6 +20,8 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
   const [bookings, setBookings] = useState<any[]>([]);
   const [showBookings, setShowBookings] = useState(initialShowBookings || false);
   const [guideInfo, setGuideInfo] = useState<any>(null);
+  const [vendorInfo, setVendorInfo] = useState<any>(null);
+  const [culinaryInfo, setCulinaryInfo] = useState<any>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -30,8 +32,15 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
         ]);
         setProfile(profileData);
         setFootprints(footprintData);
-        const guideData = await apiService.checkGuideStatus();
+
+        const [guideData, vendorData, culinaryData] = await Promise.all([
+          apiService.checkGuideStatus(),
+          apiService.getVendorProfile().catch(() => null),
+          apiService.getCulinaryVendorProfile().catch(() => null)
+        ]);
         setGuideInfo(guideData);
+        setVendorInfo(vendorData);
+        setCulinaryInfo(culinaryData);
       } catch (error) {
         console.error("Profile fetch error", error);
       } finally {
@@ -93,8 +102,10 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
     if (onLogout) onLogout();
   };
 
-  const menuItems = [
+  const menuItems: { icon: any; label: string; count?: string; action?: () => void; highlight?: boolean }[] = [
     { icon: Bookmark, label: t.profile.my_bookings, count: String(bookings.length), action: () => setShowBookings(true) },
+    { icon: ShoppingBag, label: 'Pesanan Oleh-oleh', action: () => onNavigate && onNavigate(AppScreen.SOUVENIR_ORDERS) },
+    { icon: Utensils, label: 'Pesanan Kuliner', action: () => onNavigate && onNavigate(AppScreen.CULINARY_ORDER_HISTORY) },
     { icon: Heart, label: t.profile.my_favorites, count: '12' },
     { icon: Map, label: t.profile.travel_history, count: String(footprints.length), action: () => onNavigate && onNavigate(AppScreen.FOOTPRINT) },
     {
@@ -114,6 +125,12 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
     { icon: Shield, label: t.profile.admin_panel, action: () => onNavigate && onNavigate(AppScreen.ADMIN_USERS) },
     { icon: Settings, label: t.profile.settings, action: () => onNavigate && onNavigate(AppScreen.SETTINGS) },
     { icon: HelpCircle, label: t.common.services },
+    {
+      icon: LayoutDashboard,
+      label: 'Vendor Portal (Web)',
+      action: () => window.location.href = '/vendor.html',
+      highlight: true
+    },
   ];
 
   if (loading) {
@@ -154,7 +171,7 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
                 <div className="flex justify-between items-start">
                   <div className="flex gap-4 min-w-0">
                     <div className="h-16 w-16 bg-gray-50 rounded-2xl overflow-hidden shrink-0">
-                      <img src={booking.package?.photos?.[0] || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80'} className="h-full w-full object-cover" />
+                      <img src={getProxiedImageUrl(booking.package?.photos?.[0] || 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80')} className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0">
                       <h3 className="text-sm font-black text-gray-800 truncate">{booking.package?.title}</h3>
@@ -266,7 +283,7 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
             reviews.map((review) => (
               <div key={review.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-[0.99]">
                 <div className="flex gap-4">
-                  <img src={review.destination?.image || 'https://via.placeholder.com/100'} alt={review.destination?.name} className="h-16 w-16 rounded-xl object-cover shrink-0 bg-gray-100" />
+                  <img src={getProxiedImageUrl(review.destination?.image || 'https://via.placeholder.com/100')} alt={review.destination?.name} className="h-16 w-16 rounded-xl object-cover shrink-0 bg-gray-100" />
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
                       <div>
@@ -305,7 +322,7 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
           <div className="relative">
             <div className="h-20 w-20 rounded-full border-4 border-white/20 p-1">
               <img
-                src={profile?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"}
+                src={getProxiedImageUrl(profile?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix")}
                 alt="Avatar"
                 className="h-full w-full rounded-full bg-white object-cover"
               />
@@ -350,13 +367,15 @@ const ProfileScreen: React.FC<{ onNavigate?: (screen: AppScreen, data?: any) => 
             <button
               key={idx}
               onClick={item.action ? item.action : undefined}
-              className="w-full bg-white p-4 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all border border-gray-50 active:scale-[0.98]"
+              className={`w-full bg-white p-4 rounded-2xl flex items-center justify-between group hover:shadow-md transition-all border ${item.highlight ? 'border-orange-200 bg-orange-50/10' : 'border-gray-50'
+                } active:scale-[0.98]`}
             >
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-padang-green/10 transition-colors">
-                  <Icon className="h-5 w-5 text-gray-400 group-hover:text-padang-green transition-colors" />
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${item.highlight ? 'bg-orange-100 text-orange-600' : 'bg-gray-50 group-hover:bg-padang-green/10 text-gray-400 group-hover:text-padang-green'
+                  }`}>
+                  <Icon className="h-5 w-5 transition-colors" />
                 </div>
-                <span className="text-sm font-bold text-gray-700">{item.label}</span>
+                <span className={`text-sm font-bold ${item.highlight ? 'text-orange-700' : 'text-gray-700'}`}>{item.label}</span>
               </div>
               <div className="flex items-center gap-2">
                 {item.count && <span className="text-[10px] font-bold text-padang-green bg-padang-green/10 px-2 py-0.5 rounded-full">{item.count}</span>}

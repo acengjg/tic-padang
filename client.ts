@@ -9,12 +9,15 @@ export const getProxiedImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http') && (
     url.includes('instagram.com') ||
+    url.includes('instagr.am') ||
+    url.includes('ig.me') ||
     url.includes('googleusercontent.com') ||
     url.includes('pannellum.org') ||
     url.includes('facebook.com') ||
     url.includes('fb.com') ||
     url.includes('fbcdn.net') ||
     url.includes('fb.watch') ||
+    url.includes('cdninstagram.com') ||
     url.includes('pariwisata.padang.go.id')
   )) {
     return `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(url)}`;
@@ -109,6 +112,15 @@ export const apiService = {
       console.error("Fetch Public Profile Error:", error);
       throw error;
     }
+  },
+
+  getUserBusinesses: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/user/businesses`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil data bisnis');
+    return await response.json();
   },
 
   getPlans: async (): Promise<any[]> => {
@@ -572,10 +584,385 @@ export const apiService = {
 
   getCulinarySpotDetail: async (id: string) => {
     const response = await fetch(`${API_BASE_URL}/culinary-spots/${id}`);
-    if (!response.ok) throw new Error('Failed to fetch culinary spot detail');
+    if (!response.ok) throw new Error('Gagal mengambil detail kuliner');
     return await response.json();
   },
 
+  applyCulinaryVendor: async (spotData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/culinary/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(spotData)
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Gagal mendaftar usaha kuliner');
+    }
+    return await response.json();
+  },
+
+  getCulinaryVendorProfile: async (spotId?: string) => {
+    const token = localStorage.getItem('user_token');
+    const query = spotId ? `?spotId=${spotId}` : '';
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/profile${query}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil profil kuliner');
+    return await response.json();
+  },
+
+  updateCulinaryVendorProfile: async (spotData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(spotData)
+    });
+    if (!response.ok) throw new Error('Gagal memperbarui profil kuliner');
+    return await response.json();
+  },
+
+  addCulinaryMenu: async (menuData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/menu`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(menuData)
+    });
+    if (!response.ok) throw new Error('Gagal menambah menu');
+    return await response.json();
+  },
+
+  updateCulinaryMenu: async (id: string, menuData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/menu/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(menuData)
+    });
+    if (!response.ok) throw new Error('Gagal memperbarui menu');
+    return await response.json();
+  },
+
+  deleteCulinaryMenu: async (id: string) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/menu/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal menghapus menu');
+    return await response.json();
+  },
+
+  getAdminPendingCulinary: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/admin/culinary/pending`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil daftar verifikasi kuliner');
+    return await response.json();
+  },
+
+  verifyCulinaryVendor: async (id: string, status: string) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/admin/culinary/${id}/verify`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    if (!response.ok) throw new Error('Gagal memverifikasi vendor kuliner');
+    return await response.json();
+  },
+
+  // --- CULINARY ORDERS ---
+  createCulinaryOrder: async (orderData: { spotId: string, items: { menuId: string, quantity: number, note?: string }[], note?: string }) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/culinary/order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(orderData)
+    });
+    if (!response.ok) throw new Error('Gagal membuat pesanan');
+    return await response.json();
+  },
+
+  getCulinaryOrders: async (spotId?: string) => {
+    const token = localStorage.getItem('user_token');
+    const query = spotId ? `?spotId=${spotId}` : '';
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/orders${query}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil data pesanan');
+    return await response.json();
+  },
+
+  updateCulinaryOrderStatus: async (orderId: string, status: string) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/culinary/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    if (!response.ok) throw new Error('Gagal memperbarui status pesanan');
+    return await response.json();
+  },
+
+  getUserCulinaryOrders: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/culinary/orders/user`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil riwayat pesanan');
+    return await response.json();
+  },
+
+  // --- SOUVENIRS ---
+  getSouvenirVendors: async () => {
+    const response = await fetch(`${API_BASE_URL}/souvenirs/vendors`);
+    if (!response.ok) throw new Error('Gagal mengambil data toko oleh-oleh');
+    return await response.json();
+  },
+  getSouvenirVendorDetail: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/souvenirs/vendors/${id}`);
+    if (!response.ok) throw new Error('Gagal mengambil detail toko');
+    return await response.json();
+  },
+
+  getSouvenirProducts: async (filters: { category?: string; vendorId?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (filters.category) params.append('category', filters.category);
+    if (filters.vendorId) params.append('vendorId', filters.vendorId);
+
+    const response = await fetch(`${API_BASE_URL}/souvenirs/products?${params.toString()}`);
+    if (!response.ok) throw new Error('Gagal mengambil data produk oleh-oleh');
+    return await response.json();
+  },
+
+  getSouvenirProductDetail: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/souvenirs/products/${id}`);
+    if (!response.ok) throw new Error('Gagal mengambil detail produk');
+    return await response.json();
+  },
+
+  createSouvenirOrder: async (orderData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/souvenirs/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(orderData)
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Gagal membuat pesanan');
+    }
+    return await response.json();
+  },
+
+  getUserSouvenirOrders: async (userId: string) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/souvenirs/orders/user/${userId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil riwayat pesanan');
+    return await response.json();
+  },
+
+  // --- SOUVENIR VENDOR ---
+  applyAsVendor: async (vendorData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/souvenirs/vendors/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(vendorData)
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Gagal mengirim pendaftaran');
+    }
+    return await response.json();
+  },
+
+  getAdminSouvenirVendors: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/admin/souvenirs/vendors`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil daftar vendor');
+    return await response.json();
+  },
+
+  verifySouvenirVendor: async (vendorId: string, status: 'APPROVED' | 'REJECTED') => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/admin/souvenirs/vendors/${vendorId}/verify`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    if (!response.ok) throw new Error('Gagal memverifikasi vendor');
+    return await response.json();
+  },
+
+  getVendorProducts: async (vendorId?: string) => {
+    const token = localStorage.getItem('user_token');
+    const query = vendorId ? `?vendorId=${vendorId}` : '';
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/products${query}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil produk vendor');
+    return await response.json();
+  },
+
+  getVendorProfile: async (vendorId?: string) => {
+    const token = localStorage.getItem('user_token');
+    const query = vendorId ? `?vendorId=${vendorId}` : '';
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/profile${query}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Gagal mengambil profil vendor');
+    }
+    return await response.json();
+  },
+
+  updateVendorProfile: async (profileData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(profileData)
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Gagal memperbarui profil (${response.status})`);
+    }
+    return await response.json();
+  },
+
+  getVendorOrders: async (vendorId?: string) => {
+    const token = localStorage.getItem('user_token');
+    const query = vendorId ? `?vendorId=${vendorId}` : '';
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/orders${query}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil pesanan vendor');
+    return await response.json();
+  },
+
+  updateVendorOrderStatus: async (orderId: string, status: string) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    if (!response.ok) throw new Error('Gagal memperbarui status pesanan');
+    return await response.json();
+  },
+
+  createVendorProduct: async (productData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(productData)
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Gagal menambah produk (${response.status})`);
+    }
+    return await response.json();
+  },
+
+  updateVendorProduct: async (productId: string, productData: any) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/products/${productId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(productData)
+    });
+    if (!response.ok) throw new Error('Gagal memperbarui produk');
+    return await response.json();
+  },
+
+  deleteVendorProduct: async (productId: string) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/vendor/souvenirs/products/${productId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal menghapus produk');
+    return await response.json();
+  },
+
+  // Admin Souvenir Orders
+  getAdminSouvenirOrders: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/admin/souvenirs/orders`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Gagal mengambil daftar pesanan');
+    return await response.json();
+  },
+
+  updateSouvenirOrderStatus: async (orderId: string, statusData: { status: string; paymentStatus?: string }) => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/admin/souvenirs/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(statusData)
+    });
+    if (!response.ok) throw new Error('Gagal memperbarui status pesanan');
+    return await response.json();
+  },
+
+  // --- REVIEWS ---
   submitCulinaryReview: async (spotId: string, reviewData: any) => {
     const token = localStorage.getItem('user_token');
     const response = await fetch(`${API_BASE_URL}/culinary-spots/${spotId}/reviews`, {

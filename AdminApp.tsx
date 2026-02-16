@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import {
     Users, MapPin, BarChart3, Settings,
     LogOut, Shield, Search, Plus, Trash2, Edit, X, Save, Map as MapIcon, Calendar, CheckCircle, XCircle,
-    Eye, Crosshair, Type, Utensils
+    Eye, Crosshair, Type, Utensils, Store, Package, ShoppingBag, Truck
 } from 'lucide-react';
 
 const API_BASE_URL = '/api';
@@ -80,6 +80,42 @@ const ImagePreview: React.FC<{ url: string }> = ({ url }) => {
                     <p className="text-[9px] text-gray-400 font-medium px-4">Tips: Kalau dari IG/FB, pastikan postingan tu basifaik Publik.</p>
                 </div>
             )}
+        </div>
+    );
+};
+
+const VideoPreview: React.FC<{ url: string }> = ({ url }) => {
+    if (!url) return null;
+
+    const getVideoId = (input: string) => {
+        const trimmed = input.trim();
+        if (trimmed.length === 11 && !trimmed.includes('/') && !trimmed.includes('.')) return trimmed;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+        const match = trimmed.match(regExp);
+        if (match && match[2].length === 11) return match[2];
+        if (trimmed.includes('youtu.be/')) {
+            const parts = trimmed.split('/');
+            const id = parts[parts.length - 1].split('?')[0];
+            if (id.length === 11) return id;
+        }
+        return null;
+    };
+
+    const videoId = getVideoId(url);
+    if (!videoId) return (
+        <div className="mt-2 p-4 bg-amber-50 rounded-2xl border border-amber-100 items-center justify-center flex">
+            <p className="text-[10px] text-amber-600 font-black uppercase tracking-wider">Format URL indak valid atau ID indak ditamukan</p>
+        </div>
+    );
+
+    return (
+        <div className="mt-2 relative aspect-video w-full rounded-2xl overflow-hidden border border-gray-100 bg-black flex items-center justify-center">
+            <iframe
+                className="absolute inset-0 w-full h-full border-0 shadow-2xl"
+                src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+            ></iframe>
         </div>
     );
 };
@@ -563,10 +599,11 @@ const MapPicker: React.FC<{ lat: number; lng: number; onChange: (lat: number, ln
 const AdminApp: React.FC = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
-    const [activeTab, setActiveTab] = useState<'users' | 'destinations' | 'events' | 'promotions' | 'articles' | 'guides' | 'culinary'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'destinations' | 'events' | 'promotions' | 'articles' | 'guides' | 'culinary' | 'souvenir-vendors' | 'souvenir-products' | 'souvenir-orders'>('users');
     const [items, setItems] = useState<any[]>([]);
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
     const [searchQuery, setSearchQuery] = useState('');
+    const [notificationCounts, setNotificationCounts] = useState({ guides: 0, culinary: 0, souvenirVendors: 0 });
 
     // Filter Logic
     const filteredItems = items.filter(item => {
@@ -606,6 +643,15 @@ const AdminApp: React.FC = () => {
                 item.user?.email?.toLowerCase().includes(query) ||
                 item.status?.toLowerCase().includes(query));
         }
+        if (activeTab === 'souvenir-vendors') {
+            return (item.name?.toLowerCase().includes(query) || item.location?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'souvenir-products') {
+            return (item.name?.toLowerCase().includes(query) || item.category?.toLowerCase().includes(query));
+        }
+        if (activeTab === 'souvenir-orders') {
+            return (item.id?.toLowerCase().includes(query) || item.user?.name?.toLowerCase().includes(query) || item.status?.toLowerCase().includes(query));
+        }
         return true;
     });
 
@@ -614,10 +660,28 @@ const AdminApp: React.FC = () => {
     const [editingItem, setEditingItem] = useState<any>(null);
     const [formData, setFormData] = useState<any>({});
 
+    const fetchNotifications = async () => {
+        if (!token) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/notifications`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setNotificationCounts(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch notifications", err);
+        }
+    };
+
     useEffect(() => {
         if (token) {
             setIsLoggedIn(true);
             fetchData();
+            fetchNotifications();
+            const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
+            return () => clearInterval(interval);
         }
     }, [activeTab, token]);
 
@@ -646,7 +710,12 @@ const AdminApp: React.FC = () => {
         if (!token) return;
         try {
             console.log(`Fetching ${activeTab}...`);
-            const endpoint = activeTab === 'culinary' ? 'culinary-spots' : activeTab;
+            let endpoint = activeTab as string;
+            if (activeTab === 'culinary') endpoint = 'culinary-spots';
+            if (activeTab === 'souvenir-vendors') endpoint = 'souvenirs/vendors';
+            if (activeTab === 'souvenir-products') endpoint = 'souvenirs/products';
+            if (activeTab === 'souvenir-orders') endpoint = 'souvenirs/orders';
+
             const res = await fetch(`${API_BASE_URL}/admin/${endpoint}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -697,20 +766,24 @@ const AdminApp: React.FC = () => {
                 setFormData({
                     name: '', category: 'Alam', rating: 4.5, location: '', image: '',
                     image360: '', audioNarration: '', hotspots: [], scenes: [], isEnhanced: false,
-                    description: '', price: 'Gratis', lat: -0.947, lng: 100.417
+                    description: '', price: 'Gratis', lat: -0.947, lng: 100.417, videoUrl: ''
                 });
             } else if (activeTab === 'events') {
-                setFormData({ name: '', date: new Date().toISOString(), location: '', image: '', description: '', price: '' });
+                setFormData({ name: '', date: new Date().toISOString(), location: '', image: '', description: '', price: '', videoUrl: '' });
             } else if (activeTab === 'articles') {
-                setFormData({ title: '', content: '', image: '', category: 'Wisata', author: 'Admin' });
+                setFormData({ title: '', content: '', image: '', category: 'Wisata', author: 'Admin', videoUrl: '' });
             } else if (activeTab === 'culinary') {
                 setFormData({
                     name: '', category: 'Cafe', description: '', priceRange: '$$',
                     address: '', lat: -0.947, lng: 100.417, image: '', images: [],
-                    facilities: [], openingHours: {}, menuHighlights: [], contact: '', isHalal: true
+                    facilities: [], openingHours: {}, menuHighlights: [], contact: '', isHalal: true, videoUrl: ''
                 });
-            } else if (activeTab === 'guides') {
-                setFormData({}); // Guides are manually verified, not typically created here
+            } else if (activeTab === 'souvenir-vendors') {
+                setFormData({ name: '', image: '', location: '', contact: '', description: '', rating: 4.5 });
+            } else if (activeTab === 'souvenir-products') {
+                setFormData({ name: '', description: '', price: 0, stock: 0, category: 'Lainnya', images: [], vendorId: '', rating: 4.5 });
+            } else if (activeTab === 'souvenir-orders') {
+                setFormData({}); // Orders are managed, not typically created manually here
             } else {
                 setFormData({ title: '', discount: '', image: '', videoUrl: '', provider: 'TIC-PADANG' });
             }
@@ -721,7 +794,12 @@ const AdminApp: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const method = editingItem ? 'PUT' : 'POST';
-        const endpoint = activeTab === 'culinary' ? 'culinary-spots' : activeTab;
+        let endpoint = activeTab as string;
+        if (activeTab === 'culinary') endpoint = 'culinary-spots';
+        if (activeTab === 'souvenir-vendors') endpoint = 'souvenirs/vendors';
+        if (activeTab === 'souvenir-products') endpoint = 'souvenirs/products';
+        if (activeTab === 'souvenir-orders') endpoint = 'souvenirs/orders';
+
         const url = editingItem ? `${API_BASE_URL}/admin/${endpoint}/${editingItem.id}` : `${API_BASE_URL}/admin/${endpoint}`;
 
         // Prepare formData for submission, especially for hotspots
@@ -771,7 +849,11 @@ const AdminApp: React.FC = () => {
     const handleDelete = async (id: string) => {
         if (!window.confirm('Yakin ingin menghapus?')) return;
         try {
-            const endpoint = activeTab === 'culinary' ? 'culinary-spots' : activeTab;
+            let endpoint = activeTab as string;
+            if (activeTab === 'culinary') endpoint = 'culinary-spots';
+            if (activeTab === 'souvenir-vendors') endpoint = 'souvenirs/vendors';
+            if (activeTab === 'souvenir-products') endpoint = 'souvenirs/products';
+
             const res = await fetch(`${API_BASE_URL}/admin/${endpoint}/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -800,6 +882,48 @@ const AdminApp: React.FC = () => {
             }
         } catch (err) {
             alert('Gagal memproses verifikasi');
+        }
+    };
+
+    const handleVerifyVendor = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+        if (!window.confirm(`Yakin ingin ${status === 'APPROVED' ? 'menyetujui' : 'menolak'} vendor ini?`)) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/souvenirs/vendors/${id}/verify`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) fetchData();
+            else {
+                const err = await res.json();
+                alert(err.error);
+            }
+        } catch (err) {
+            alert('Gagal memproses verifikasi vendor');
+        }
+    };
+
+    const handleVerifyCulinary = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+        if (!window.confirm(`Yakin ingin ${status === 'APPROVED' ? 'menyetujui' : 'menolak'} usaha kuliner ini?`)) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/culinary/${id}/verify`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status })
+            });
+            if (res.ok) fetchData();
+            else {
+                const err = await res.json();
+                alert(err.error);
+            }
+        } catch (err) {
+            alert('Gagal memproses verifikasi kuliner');
         }
     };
 
@@ -866,11 +990,12 @@ const AdminApp: React.FC = () => {
                     {[
                         { id: 'users', label: 'Pengguna', icon: Users },
                         { id: 'destinations', label: 'Destinasi', icon: MapPin },
-                        { id: 'culinary', label: 'Kelola Kuliner', icon: Utensils },
+                        { id: 'culinary', label: 'Kelola Kuliner', icon: Utensils, badge: notificationCounts.culinary },
                         { id: 'events', label: 'Event Kota', icon: Calendar },
                         { id: 'promotions', label: 'Promosi', icon: Settings },
                         { id: 'articles', label: 'Berita & Artikel', icon: BarChart3 },
-                        { id: 'guides', label: 'Verifikasi Pemandu', icon: Shield },
+                        { id: 'guides', label: 'Verifikasi Pemandu', icon: Shield, badge: notificationCounts.guides },
+                        { id: 'souvenir-vendors', label: 'Vendor Oleh-oleh', icon: Store, badge: notificationCounts.souvenirVendors },
                     ].map((nav) => (
                         <button
                             key={nav.id}
@@ -882,6 +1007,9 @@ const AdminApp: React.FC = () => {
                         >
                             <nav.icon size={20} />
                             <span className="text-sm">{nav.label}</span>
+                            {nav.badge !== undefined && nav.badge > 0 && (
+                                <span className="ml-auto bg-chili-red text-white text-[10px] font-black px-2 py-0.5 rounded-full">{nav.badge}</span>
+                            )}
                         </button>
                     ))}
                 </nav>
@@ -905,7 +1033,11 @@ const AdminApp: React.FC = () => {
                                     activeTab === 'culinary' ? 'Kelola Kuliner' :
                                         activeTab === 'events' ? 'Kelola Event' :
                                             activeTab === 'articles' ? 'Berita & Artikel' :
-                                                activeTab === 'guides' ? 'Verifikasi Pemandu' : 'Kelola Promosi'}
+                                                activeTab === 'guides' ? 'Verifikasi Pemandu' :
+                                                    activeTab === 'souvenir-vendors' ? 'Vendor Oleh-oleh' :
+                                                        activeTab === 'souvenir-products' ? 'Produk Oleh-oleh' :
+                                                            activeTab === 'souvenir-orders' ? 'Pesanan Oleh-oleh' :
+                                                                'Kelola Promosi'}
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">TIC-PADANG Admin Control Center</p>
                     </div>
@@ -923,10 +1055,10 @@ const AdminApp: React.FC = () => {
                         </div>
                         <button
                             onClick={() => handleOpenModal()}
-                            disabled={activeTab === 'guides'}
-                            className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
+                            disabled={activeTab === 'guides' || activeTab === 'souvenir-orders'}
+                            className={`px-8 py-4 rounded-2xl flex items-center gap-2 font-bold shadow-xl transition-all ${activeTab === 'guides' || activeTab === 'souvenir-orders' ? 'bg-gray-200 cursor-not-allowed text-gray-400' : 'bg-padang-green text-white shadow-padang-green/10 hover:scale-105 active:scale-95'}`}
                         >
-                            <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'culinary' ? 'Tempat Kuliner' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : 'Data'}
+                            <Plus size={20} /> Tambah {activeTab === 'users' ? 'User' : activeTab === 'destinations' ? 'Destinasi' : activeTab === 'culinary' ? 'Tempat Kuliner' : activeTab === 'events' ? 'Event' : activeTab === 'articles' ? 'Artikel' : activeTab === 'souvenir-vendors' ? 'Vendor' : activeTab === 'souvenir-products' ? 'Produk' : 'Data'}
                         </button>
                     </div>
                 </header>
@@ -940,9 +1072,11 @@ const AdminApp: React.FC = () => {
                                     {activeTab === 'users' ? 'Role / Level' :
                                         activeTab === 'destinations' ? 'Kategori / Lokasi' :
                                             activeTab === 'culinary' ? 'Kategori / Harga' :
-                                                activeTab === 'promotions' ? 'Diskon / Provider' :
-                                                    activeTab === 'guides' ? 'Status / Exp' :
-                                                        activeTab === 'articles' ? 'Kategori / Author' : 'Lokasi / Harga'}
+                                                activeTab === 'guides' ? 'Status / Exp' :
+                                                    activeTab === 'articles' ? 'Kategori / Author' :
+                                                        activeTab === 'souvenir-vendors' ? 'Lokasi / Rating' :
+                                                            activeTab === 'souvenir-products' ? 'Kategori / Stok' :
+                                                                activeTab === 'souvenir-orders' ? 'User / Total' : 'Lokasi / Harga'}
                                 </th>
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Aksi</th>
                             </tr>
@@ -959,7 +1093,7 @@ const AdminApp: React.FC = () => {
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-4">
                                             <div className="h-12 w-12 rounded-2xl bg-gray-100 overflow-hidden border border-gray-50">
-                                                <SafeImage src={item.avatar || item.image || item.user?.avatar} alt={item.name || item.title || item.user?.name} className="w-full h-full object-cover" />
+                                                <SafeImage src={item.avatar || item.image || item.images?.[0] || item.user?.avatar} alt={item.name || item.title || item.user?.name} className="w-full h-full object-cover" />
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-800">{item.name || item.title || item.user?.name}</p>
@@ -968,8 +1102,11 @@ const AdminApp: React.FC = () => {
                                                         activeTab === 'guides' ? item.user?.email :
                                                             activeTab === 'culinary' ? item.address :
                                                                 activeTab === 'promotions' ? item.provider :
-                                                                    activeTab === 'articles' ? (item.content ? item.content.substring(0, 30) + '...' : '') :
-                                                                        activeTab === 'events' ? new Date(item.date).toLocaleDateString() : item.category}
+                                                                    activeTab === 'souvenir-vendors' ? item.location :
+                                                                        activeTab === 'souvenir-products' ? item.category :
+                                                                            activeTab === 'souvenir-orders' ? `ID: ${(item.id || '').slice(-8)}` :
+                                                                                activeTab === 'articles' ? (item.content ? item.content.substring(0, 30) + '...' : '') :
+                                                                                    activeTab === 'events' ? new Date(item.date).toLocaleDateString() : item.category}
                                                 </p>
                                             </div>
                                         </div>
@@ -981,14 +1118,18 @@ const AdminApp: React.FC = () => {
                                                     activeTab === 'culinary' ? 'bg-orange-100 text-orange-600' :
                                                         activeTab === 'promotions' ? 'bg-orange-100 text-orange-600' :
                                                             activeTab === 'guides' ? (item.status === 'APPROVED' ? 'bg-padang-green/10 text-padang-green' : item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600') :
-                                                                activeTab === 'articles' ? 'bg-blue-100 text-blue-600' : 'bg-padang-green/10 text-padang-green'
+                                                                activeTab === 'souvenir-vendors' ? (item.status === 'APPROVED' ? 'bg-padang-green/10 text-padang-green' : item.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600') :
+                                                                    activeTab === 'articles' ? 'bg-blue-100 text-blue-600' : 'bg-padang-green/10 text-padang-green'
                                                 }`}>
                                                 {activeTab === 'users' ? item.role :
                                                     activeTab === 'destinations' ? item.category :
                                                         activeTab === 'culinary' ? item.category :
                                                             activeTab === 'promotions' ? 'PROMO' :
                                                                 activeTab === 'guides' ? item.status :
-                                                                    activeTab === 'articles' ? item.category : 'EVENT'}
+                                                                    activeTab === 'souvenir-vendors' ? item.status :
+                                                                        activeTab === 'souvenir-products' ? 'PRODUK' :
+                                                                            activeTab === 'souvenir-orders' ? item.status :
+                                                                                activeTab === 'articles' ? item.category : 'EVENT'}
                                             </span>
                                             <p className="text-[10px] text-gray-400 font-bold ml-1">
                                                 {item.location || (activeTab === 'culinary' ? (() => {
@@ -1008,23 +1149,34 @@ const AdminApp: React.FC = () => {
                                                 })() :
                                                     activeTab === 'promotions' ? `${item.discount} • ${item.videoUrl ? 'With Video' : 'Image only'}` :
                                                         activeTab === 'guides' ? `${item.yearsExperience} Thn Exp • ${item.languages?.join(', ')}` :
-                                                            activeTab === 'articles' ? `By ${item.author} • ${new Date(item.date).toLocaleDateString()}` :
-                                                                typeof item.level === 'number' ? `Lvl ${item.level} • ${item.points} Pts` : '')}
+                                                            activeTab === 'souvenir-vendors' ? `${(item.rating || 0).toFixed(1)} Stars • ${item.contact || 'No Contact'}` :
+                                                                activeTab === 'souvenir-products' ? `Stock: ${item.stock || 0} • Rp ${(item.price || 0).toLocaleString('id-ID')}` :
+                                                                    activeTab === 'souvenir-orders' ? `${item.user?.name || 'Anonymous'} • Rp ${(item.totalPrice || 0).toLocaleString('id-ID')}` :
+                                                                        activeTab === 'articles' ? `By ${item.author} • ${new Date(item.date).toLocaleDateString()}` :
+                                                                            typeof item.level === 'number' ? `Lvl ${item.level} • ${item.points} Pts` : '')}
                                             </p>
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-right">
-                                        {activeTab === 'guides' && item.status === 'PENDING' ? (
+                                        {(activeTab === 'guides' || activeTab === 'souvenir-vendors' || activeTab === 'culinary') && item.status === 'PENDING' ? (
                                             <div className="flex gap-2">
                                                 <button
-                                                    onClick={() => handleVerifyGuide(item.id, 'APPROVED')}
+                                                    onClick={() => {
+                                                        if (activeTab === 'guides') handleVerifyGuide(item.id, 'APPROVED');
+                                                        else if (activeTab === 'souvenir-vendors') handleVerifyVendor(item.id, 'APPROVED');
+                                                        else handleVerifyCulinary(item.id, 'APPROVED');
+                                                    }}
                                                     className="p-2.5 bg-padang-green/10 text-padang-green hover:bg-padang-green hover:text-white rounded-xl transition-all"
                                                     title="Setujui"
                                                 >
                                                     <CheckCircle size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleVerifyGuide(item.id, 'REJECTED')}
+                                                    onClick={() => {
+                                                        if (activeTab === 'guides') handleVerifyGuide(item.id, 'REJECTED');
+                                                        else if (activeTab === 'souvenir-vendors') handleVerifyVendor(item.id, 'REJECTED');
+                                                        else handleVerifyCulinary(item.id, 'REJECTED');
+                                                    }}
                                                     className="p-2.5 bg-red-50 text-chili-red hover:bg-chili-red hover:text-white rounded-xl transition-all"
                                                     title="Tolak"
                                                 >
@@ -1129,6 +1281,12 @@ const AdminApp: React.FC = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Utama</label>
                                             <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
                                             <ImagePreview url={formData.image} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Link Video YouTube (Embed Link/ID)</label>
+                                            <input type="text" value={formData.videoUrl || ''} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="E.g. https://www.youtube.com/embed/XXXXX atau cuma ID-nya" />
+                                            <VideoPreview url={formData.videoUrl} />
+                                            <p className="text-[10px] text-gray-400 font-bold ml-1 italic">* Jika diisi, video akan tampil di halaman detail.</p>
                                         </div>
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar 360° (Equirectangular)</label>
@@ -1239,6 +1397,12 @@ const AdminApp: React.FC = () => {
                                             <ImagePreview url={formData.image} />
                                         </div>
                                         <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Link Video YouTube (ID / URL)</label>
+                                            <input type="text" value={formData.videoUrl || ''} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="Masukkan ID YouTube atau Link" />
+                                            <VideoPreview url={formData.videoUrl} />
+                                            <p className="text-[10px] text-gray-400 font-bold ml-1 italic">* Video akan tampil secara otomatis di halaman detail.</p>
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Event</label>
                                             <textarea required value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none min-h-[120px]" placeholder="Deskripsi lengkap event..." />
                                         </div>
@@ -1270,8 +1434,84 @@ const AdminApp: React.FC = () => {
                                             <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
                                         </div>
                                         <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Link Video YouTube (Embed Link/ID)</label>
+                                            <input type="text" value={formData.videoUrl || ''} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="E.g. https://www.youtube.com/embed/XXXXX atau cuma ID-nya" />
+                                            <VideoPreview url={formData.videoUrl} />
+                                            <p className="text-[10px] text-gray-400 font-bold ml-1 italic">* Jika diisi, video akan tampil di halaman detail artikel.</p>
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Konten Artikel</label>
                                             <textarea required value={formData.content || ''} onChange={(e) => setFormData({ ...formData, content: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none min-h-[200px]" placeholder="Tulis artikel lengkap di sini..." />
+                                        </div>
+                                    </>
+                                )}
+
+                                {activeTab === 'souvenir-vendors' && (
+                                    <>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Nama Vendor</label>
+                                            <input required type="text" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Alamat/Lokasi</label>
+                                            <input required type="text" value={formData.location || ''} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Kontak (WhatsApp)</label>
+                                            <input type="text" value={formData.contact || ''} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="628xx..." />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Rating (0-5)</label>
+                                            <input type="number" step="0.1" value={formData.rating || 4.5} onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Vendor</label>
+                                            <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Vendor</label>
+                                            <textarea required value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none min-h-[120px]" placeholder="Deskripsi vendor oleh-oleh..." />
+                                        </div>
+                                    </>
+                                )}
+
+                                {activeTab === 'souvenir-products' && (
+                                    <>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Nama Produk</label>
+                                            <input required type="text" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Kategori</label>
+                                            <select value={formData.category || 'Lainnya'} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold">
+                                                <option value="Makanan">Makanan</option>
+                                                <option value="Pakaian">Pakaian</option>
+                                                <option value="Kerajinan">Kerajinan</option>
+                                                <option value="Aksesori">Aksesori</option>
+                                                <option value="Lainnya">Lainnya</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Vendor (ID)</label>
+                                            <input required type="text" value={formData.vendorId || ''} onChange={(e) => setFormData({ ...formData, vendorId: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="Masukkan ID Vendor" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Harga (Rp)</label>
+                                            <input required type="number" value={formData.price || 0} onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Stok</label>
+                                            <input required type="number" value={formData.stock || 0} onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none font-bold" />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Produk (Thumbnail)</label>
+                                            <input required type="text" value={formData.image || (formData.images && formData.images[0]) || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value, images: [e.target.value] })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
+                                            <ImagePreview url={formData.image || (formData.images && formData.images[0])} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Produk</label>
+                                            <textarea required value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none min-h-[120px]" placeholder="Detail produk oleh-oleh..." />
                                         </div>
                                     </>
                                 )}
@@ -1311,6 +1551,12 @@ const AdminApp: React.FC = () => {
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">URL Gambar Utama</label>
                                             <input required type="text" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="https://..." />
                                             <ImagePreview url={formData.image} />
+                                        </div>
+                                        <div className="col-span-2 space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Link Video YouTube (ID / URL)</label>
+                                            <input type="text" value={formData.videoUrl || ''} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-4 px-6 focus:ring-4 focus:ring-padang-green/5 outline-none" placeholder="Masukkan ID YouTube atau Link" />
+                                            <VideoPreview url={formData.videoUrl} />
+                                            <p className="text-[10px] text-gray-400 font-bold ml-1 italic">* Video akan tampil secara otomatis di halaman detail.</p>
                                         </div>
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Deskripsi Lengkap</label>

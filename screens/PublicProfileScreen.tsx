@@ -125,7 +125,7 @@ const PublicProfileScreen: React.FC<PublicProfileScreenProps> = ({ userId, onBac
                         </div>
 
                         <div className="space-y-4">
-                            <p className="text-sm text-gray-600 leading-relaxed font-medium">
+                            <p className="text-sm text-gray-600 leading-relaxed font-medium whitespace-pre-wrap">
                                 {user.guide.bio}
                             </p>
 
