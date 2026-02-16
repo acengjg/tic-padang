@@ -178,8 +178,8 @@ const HomeScreen: React.FC<{ onNavigate: (screen: AppScreen, data?: any) => void
         <div className="flex gap-4 overflow-x-auto pb-2 px-1 no-scrollbar snap-x">
           {[
             { label: 'Wisata', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-100/50', screen: AppScreen.EXPLORE },
-            { label: 'Kuliner', icon: Utensils, color: 'text-orange-600', bg: 'bg-orange-100/50', screen: AppScreen.CULINARY_SPOTS },
             { label: 'Event', icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-100/50', screen: AppScreen.EVENTS },
+            { label: 'Kuliner', icon: Utensils, color: 'text-orange-600', bg: 'bg-orange-100/50', screen: AppScreen.CULINARY_SPOTS },
             { label: 'Oleh-oleh', icon: ShoppingBag, color: 'text-amber-600', bg: 'bg-amber-100/50', screen: AppScreen.SOUVENIR_MARKETPLACE },
             { label: 'Guide', icon: UserCheck, color: 'text-rose-600', bg: 'bg-rose-100/50', screen: AppScreen.GUIDE_MARKETPLACE },
             { label: 'Buddy', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100/50', screen: AppScreen.TRAVEL_BUDDY },

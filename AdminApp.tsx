@@ -990,11 +990,11 @@ const AdminApp: React.FC = () => {
                     {[
                         { id: 'users', label: 'Pengguna', icon: Users },
                         { id: 'destinations', label: 'Destinasi', icon: MapPin },
-                        { id: 'culinary', label: 'Kelola Kuliner', icon: Utensils, badge: notificationCounts.culinary },
                         { id: 'events', label: 'Event Kota', icon: Calendar },
                         { id: 'promotions', label: 'Promosi', icon: Settings },
                         { id: 'articles', label: 'Berita & Artikel', icon: BarChart3 },
                         { id: 'guides', label: 'Verifikasi Pemandu', icon: Shield, badge: notificationCounts.guides },
+                        { id: 'culinary', label: 'Vendor Kuliner', icon: Utensils, badge: notificationCounts.culinary },
                         { id: 'souvenir-vendors', label: 'Vendor Oleh-oleh', icon: Store, badge: notificationCounts.souvenirVendors },
                     ].map((nav) => (
                         <button

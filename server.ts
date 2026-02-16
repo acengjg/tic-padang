@@ -96,7 +96,7 @@ const requireCulinary = async (req: any, res: any, next: NextFunction) => {
 };
 
 app.get('/api/version', (req, res) => {
-  res.json({ version: '1.0.3-admin-refinement', timestamp: new Date().toISOString() });
+  res.json({ version: '1.0.4-ui-refinement', timestamp: new Date().toISOString() });
 });
 
 // --- AUTH ROUTES ---
