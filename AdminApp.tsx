@@ -236,43 +236,7 @@ const HotspotPicker: React.FC<{
         }
     };
 
-    const addHotspotOnClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!viewerInstance.current || !viewerReady) {
-            alert("Viewer belum siap. Silakan tunggu gambar muncul.");
-            return;
-        }
 
-        const rect = viewerRef.current!.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        // Convert screen coordinates to pitch and yaw using mouseEventToCoords
-        try {
-            const coords = viewerInstance.current.mouseEventToCoords(e.nativeEvent);
-            if (!coords || !Array.isArray(coords)) {
-                console.warn("Could not get hotspot location from click coordinates.");
-                return;
-            }
-
-            const [pitch, yaw] = coords;
-
-            const newHotspot = {
-                pitch: pitch,
-                yaw: yaw,
-                type: 'info',
-                text: 'Hotspot Baru (Klik)',
-                description: 'Tuliskan informasi detail di sini...'
-            };
-
-            const updated = [...hotspots, newHotspot];
-            onChange(updated);
-
-            viewerInstance.current.addHotSpot(newHotspot);
-        } catch (err) {
-            console.error("Error adding hotspot live from click:", err);
-            setTimeout(initViewer, 100);
-        }
-    };
 
     const removeHotspot = (idx: number) => {
         const updated = hotspots.filter((_, i) => i !== idx);
@@ -307,7 +271,6 @@ const HotspotPicker: React.FC<{
                     <div
                         ref={viewerRef}
                         className="h-[650px] w-full rounded-[48px] border border-gray-100 overflow-hidden shadow-2xl bg-black relative"
-                        onClick={addHotspotOnClick}
                     >
                         {isLoading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-950 z-10 transition-all">
