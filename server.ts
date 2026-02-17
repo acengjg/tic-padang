@@ -727,7 +727,8 @@ app.post('/api/admin/souvenirs/vendors', authenticateToken, requireAdmin, async 
         location,
         lat: lat ? parseFloat(lat) : null,
         lng: lng ? parseFloat(lng) : null,
-        contact
+        contact,
+        userId: req.body.userId || req.user.id
       }
     });
     res.status(201).json(vendor);
@@ -1767,6 +1768,79 @@ app.get('/api/guide/bookings', authenticateToken, async (req: any, res: Response
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ error: 'Gagal mengambil data pesanan' });
+  }
+});
+
+app.get('/api/guide/stats', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const guide = await prisma.guide.findUnique({ where: { userId: req.user.id } });
+    if (!guide) return res.status(403).json({ error: 'Anda bukan guide' });
+
+    const bookings = await prisma.booking.findMany({
+      where: { guideId: guide.id },
+      include: { package: true }
+    });
+
+    const reviews = await prisma.packageReview.findMany({
+      where: { guideId: guide.id }
+    });
+
+    // Calculations
+    const totalBookings = bookings.length;
+    const confirmedBookings = bookings.filter(b => b.bookingStatus === 'CONFIRMED');
+    const totalEarnings = confirmedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    const averageRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + (r.overallRating || 0), 0) / reviews.length
+      : 0;
+
+    // Monthly Bookings (Last 6 months)
+    const monthlyStats: any = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = d.toLocaleString('id-ID', { month: 'short' });
+      monthlyStats[monthName] = 0;
+    }
+
+    bookings.forEach(b => {
+      const monthName = new Date(b.createdAt).toLocaleString('id-ID', { month: 'short' });
+      if (monthlyStats.hasOwnProperty(monthName)) {
+        monthlyStats[monthName]++;
+      }
+    });
+
+    // Package Performance
+    const packageStats: any = {};
+    bookings.forEach(b => {
+      if (b.package) {
+        const title = b.package.title;
+        if (!packageStats[title]) packageStats[title] = { count: 0, revenue: 0 };
+        packageStats[title].count++;
+        if (b.bookingStatus === 'CONFIRMED') {
+          packageStats[title].revenue += b.totalPrice || 0;
+        }
+      }
+    });
+
+    const topPackages = Object.entries(packageStats)
+      .map(([title, stats]: any) => ({ title, ...stats }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    res.json({
+      summary: {
+        totalEarnings,
+        totalBookings,
+        confirmedBookings: confirmedBookings.length,
+        averageRating: Number(averageRating.toFixed(1)),
+        totalReviews: reviews.length
+      },
+      monthlyChart: Object.entries(monthlyStats).map(([name, value]) => ({ name, value })),
+      topPackages
+    });
+  } catch (error) {
+    console.error("Guide Stats Error:", error);
+    res.status(500).json({ error: 'Gagal mengambil statistik guide' });
   }
 });
 

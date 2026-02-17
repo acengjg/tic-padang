@@ -81,18 +81,6 @@ const GuideMarketplaceScreen: React.FC<GuideMarketplaceScreenProps> = ({ onNavig
                                 </span>
                             )}
                         </button>
-                        <button
-                            onClick={() => onNavigate(AppScreen.GUIDE_DASHBOARD)}
-                            className={`h-12 px-4 rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${guideInfo?.status === 'APPROVED' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-padang-green/10 text-padang-green'}`}
-                        >
-                            {guideInfo?.status === 'APPROVED' ? (
-                                <>Guide Approved <CheckCircle2 size={14} className="text-green-600" /></>
-                            ) : guideInfo?.status === 'PENDING' ? (
-                                <>Pending Verifikasi <Clock size={14} /></>
-                            ) : (
-                                <>Jadi Guide <Star size={14} className="fill-padang-green" /></>
-                            )}
-                        </button>
                     </div>
                 </div>
 

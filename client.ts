@@ -560,6 +560,15 @@ export const apiService = {
     return await response.json();
   },
 
+  getGuideStats: async () => {
+    const token = localStorage.getItem('user_token');
+    const response = await fetch(`${API_BASE_URL}/guide/stats`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to fetch guide statistics');
+    return await response.json();
+  },
+
   cancelBooking: async (bookingId: string, reason: string) => {
     const token = localStorage.getItem('user_token');
     const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel`, {

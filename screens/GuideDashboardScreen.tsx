@@ -12,6 +12,7 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
     const [guideInfo, setGuideInfo] = useState<any>(null);
     const [packages, setPackages] = useState<any[]>([]);
     const [bookings, setBookings] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [showRegForm, setShowRegForm] = useState(false);
     const [activeTab, setActiveTab] = useState<'packages' | 'bookings' | 'stats' | 'settings'>('bookings');
@@ -44,6 +45,8 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
                 setPackages(pkgs);
                 const bks = await apiService.getGuideBookings();
                 setBookings(bks);
+                const st = await apiService.getGuideStats();
+                setStats(st);
             }
         } catch (error) {
             console.error("Failed to load guide dashboard", error);
@@ -240,14 +243,14 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
                 {/* Stats Row */}
                 <div className="grid grid-cols-3 gap-3">
                     {[
-                        { label: 'Earning', value: 'Rp 2.4M', icon: TrendingUp },
-                        { label: 'Bookings', value: packages.length, icon: Package },
-                        { label: 'Reviews', value: guideInfo.totalReviews, icon: Star },
+                        { label: 'Earning', value: `Rp ${(stats?.summary?.totalEarnings || 0).toLocaleString()}`, icon: TrendingUp },
+                        { label: 'Bookings', value: stats?.summary?.confirmedBookings || 0, icon: Package },
+                        { label: 'Rating', value: stats?.summary?.averageRating || '0.0', icon: Star },
                     ].map((stat, i) => (
                         <div key={i} className="bg-gray-50 p-4 rounded-2xl">
                             <stat.icon size={16} className="text-padang-green mb-1" />
-                            <p className="text-[16px] font-black text-gray-800">{stat.value}</p>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                            <p className="text-[14px] font-black text-gray-800">{stat.value}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-tight">{stat.label}</p>
                         </div>
                     ))}
                 </div>
@@ -413,6 +416,96 @@ const GuideDashboardScreen: React.FC<GuideDashboardScreenProps> = ({ onBack, onN
                             </div>
                         )}
                     </>
+                )}
+                {activeTab === 'stats' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-300">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Pesanan</p>
+                                <p className="text-2xl font-black text-gray-800">{stats?.summary?.totalBookings || 0}</p>
+                                <p className="text-[10px] font-bold text-green-500 mt-1">{stats?.summary?.confirmedBookings || 0} Berhasil</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Ulasan</p>
+                                <p className="text-2xl font-black text-gray-800">{stats?.summary?.totalReviews || 0}</p>
+                                <div className="flex items-center gap-1 mt-1">
+                                    <Star size={10} className="fill-amber-400 text-amber-400" />
+                                    <p className="text-[10px] font-bold text-amber-500">{stats?.summary?.averageRating || '0.0'} Rata-rata</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Chart Area */}
+                        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xs font-black text-gray-800 uppercase tracking-widest">Tren Pesanan</h3>
+                                <div className="flex items-center gap-1">
+                                    <div className="h-2 w-2 rounded-full bg-padang-green" />
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Bulanan</span>
+                                </div>
+                            </div>
+
+                            <div className="h-32 flex items-end justify-between gap-2 px-2">
+                                {stats?.monthlyChart?.map((item: any, i: number) => {
+                                    const max = Math.max(...stats.monthlyChart.map((m: any) => m.value), 1);
+                                    const height = (item.value / max) * 100;
+                                    return (
+                                        <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                                            <div
+                                                className="w-full bg-padang-green/20 rounded-t-lg relative group transition-all"
+                                                style={{ height: `${height}%` }}
+                                            >
+                                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[8px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {item.value}
+                                                </div>
+                                                <div className="absolute inset-0 bg-padang-green rounded-t-lg scale-x-0 group-hover:scale-x-100 transition-transform origin-center" />
+                                            </div>
+                                            <span className="text-[8px] font-black text-gray-400 uppercase">{item.name}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Top Packages */}
+                        <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm space-y-4">
+                            <h3 className="text-xs font-black text-gray-800 uppercase tracking-widest">Paket Terpopuler</h3>
+                            <div className="space-y-4">
+                                {stats?.topPackages?.map((pkg: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-xl bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400">
+                                                0{i + 1}
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-black text-gray-800 line-clamp-1">{pkg.title}</p>
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{pkg.count} Pesanan</p>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs font-black text-padang-green">Rp {pkg.revenue.toLocaleString()}</p>
+                                    </div>
+                                ))}
+                                {(!stats?.topPackages || stats.topPackages.length === 0) && (
+                                    <p className="text-center py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Belum ada data penjualan</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Recent Reviews Summary */}
+                        <div className="bg-padang-green p-6 rounded-[32px] text-white shadow-xl shadow-padang-green/20">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="h-10 w-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                                    <Star size={20} className="fill-white" />
+                                </div>
+                                <h3 className="text-xs font-black uppercase tracking-widest">Review Insights</h3>
+                            </div>
+                            <p className="text-[11px] font-bold opacity-80 leading-relaxed">
+                                Anda memiliki rata-rata rating {stats?.summary?.averageRating || '0.0'} dari {stats?.summary?.totalReviews || 0} ulasan.
+                                Wisatawan sangat menyukai keramahan dan pengetahuan Anda tentang sejarah Kota Padang.
+                            </p>
+                        </div>
+                    </div>
                 )}
                 {activeTab === 'settings' && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom duration-300">

@@ -4,7 +4,7 @@
 HOST="103.141.74.87"
 USER="ubuntuserver"
 PASS="@Marpoyan77"
-DB_USER="postgres"
+DB_USER="resegasharits"
 DB_PASS="12345678"
 DB_NAME="sipadang"
 LOCAL_DUMP_FILE="sipadang_vps_dump.sql"

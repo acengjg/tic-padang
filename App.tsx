@@ -244,7 +244,7 @@ const App: React.FC = () => {
           />
         ) : <TravelBuddyScreen onNavigate={handleNavigate} onBack={() => setCurrentScreen(AppScreen.HOME)} />;
       case AppScreen.GUIDE_DASHBOARD:
-        return <GuideDashboardScreen onBack={() => setCurrentScreen(AppScreen.GUIDE_MARKETPLACE)} onNavigate={handleNavigate} />;
+        return <GuideDashboardScreen onBack={() => setCurrentScreen(AppScreen.PROFILE)} onNavigate={handleNavigate} />;
       case AppScreen.CREATE_PACKAGE:
         return (
           <CreatePackageScreen
