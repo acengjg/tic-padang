@@ -1,4 +1,5 @@
 
+import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -8,6 +9,7 @@ import fs from 'fs';
 import multer from 'multer';
 import sharp from 'sharp';
 import { fileURLToPath } from 'url';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,12 +18,20 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT || 3001);
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Multer Config
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 app.use(express.json() as any);
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // Middleware CORS
 app.use((req: any, res: any, next: NextFunction) => {
@@ -1333,6 +1343,9 @@ interface TripRequest {
 }
 
 app.post('/api/trip-planner/generate', async (req: Request, res: Response) => {
+  console.log('--- TRIP PLANNER REQUEST RECEIVED ---');
+  console.log('API KEY Loaded:', !!GEMINI_API_KEY);
+  console.log('Body:', req.body);
   try {
     const { duration, budget, interests }: TripRequest = req.body;
 
@@ -1342,73 +1355,130 @@ app.post('/api/trip-planner/generate', async (req: Request, res: Response) => {
         category: { in: interests }
       } : undefined
     });
+    console.log(`Found ${allDestinations.length} destinations matching interests: ${interests.join(', ')}`);
 
     if (allDestinations.length === 0) {
       return res.json({ itinerary: [], totalCost: 0, message: 'Tidak ada destinasi yang sesuai kriteria.' });
     }
 
-    // 2. Sort by Rating (Heuristic: visit best places first)
-    // In a real AI model, we would use a score combining personalized weights
-    const sortedDestinations = allDestinations.sort((a: any, b: any) => b.rating - a.rating);
+    // 2. Prepare context for Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
 
-    // 3. Generate Itinerary
-    const itinerary: any[] = [];
-    let currentCost = 0;
-    const destinationsPerDay = 3;
-    let day = 1;
+    const prompt = `
+      Anda adalah pakar pariwisata Sumatera Barat, khususnya Kota Padang.
+      Buatlah rencana perjalanan (itinerary) wisata di Kota Padang untuk:
+      - Durasi: ${duration} hari
+      - Total Budget: Rp ${budget.toLocaleString('id-ID')}
+      - Minat: ${interests.join(', ')}
 
-    // Helper to parse price
-    const getPrice = (priceStr: string | null) => {
-      if (!priceStr || priceStr.toLowerCase() === 'gratis') return 0;
-      return parseInt(priceStr.replace(/[^0-9]/g, '')) || 0;
-    };
+      Daftar destinasi yang tersedia (Nama, Kategori, Harga Tiket, Lokasi):
+      ${allDestinations.map(d => `- ${d.name} (${d.category}, Harga: ${d.price}, Lokasi: ${d.location})`).join('\n')}
 
-    // Distribute
-    let visitedIds = new Set();
+      Aturan:
+      1. Masukkan maksimal 3 aktivitas per hari.
+      2. Jangan melebihi total budget (perhitungkan harga tiket).
+      3. Format output harus JSON murni dengan struktur berikut:
+      {
+        "itinerary": [
+          {
+            "day": 1,
+            "items": [
+              {
+                "time": "09:00",
+                "destinationName": "Nama Destinasi",
+                "activity": "Deskripsi singkat aktivitas",
+                "cost": 50000
+              }
+            ]
+          }
+        ],
+        "totalCost": 150000,
+        "note": "Alasan pemilihan rute ini"
+      }
+      
+      Pastikan "destinationName" sama persis dengan nama dari daftar destinasi yang tersedia.
+      Berikan hanya JSON tanpa markdown atau teks lainnya.
+    `;
 
-    for (let d = 0; d < duration; d++) {
-      const dailyPlan: any = {
-        day: d + 1,
-        items: []
+    let resultData;
+    let isFallback = false;
+
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      let text = response.text();
+
+      console.log('--- GEMINI RESPONSE ---');
+      console.log(text);
+
+      // Clean up response if it contains markdown code blocks
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      resultData = JSON.parse(text);
+    } catch (aiError: any) {
+      console.error('Gemini AI failed, using fallback heuristic:', aiError.message);
+      isFallback = true;
+
+      // FALLBACK logic
+      const sortedDestinations = allDestinations.sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0));
+      const itinerary: any[] = [];
+      let currentCost = 0;
+      const destinationsPerDay = 3;
+      const getPrice = (priceStr: string | null) => {
+        if (!priceStr || priceStr.toLowerCase() === 'gratis') return 0;
+        return parseInt(priceStr.replace(/[^0-9]/g, '')) || 0;
       };
+      let visitedIds = new Set();
 
-      for (let i = 0; i < destinationsPerDay; i++) {
-        // Find next best unvisited that fits budget
-        const nextDest = sortedDestinations.find((dest: any) => !visitedIds.has(dest.id));
-
-        if (nextDest) {
-          const cost = getPrice(nextDest.price);
-
-          // Soft budget check (allow if it's the only item or budget permits)
-          if (currentCost + cost <= budget * 1.2) { // Allow 20% margin
-            visitedIds.add(nextDest.id);
-            currentCost += cost;
-
-            dailyPlan.items.push({
-              time: i === 0 ? '09:00' : i === 1 ? '13:00' : '16:00',
-              destination: nextDest,
-              activity: `Mengunjungi ${nextDest.name}`,
-              cost: cost
-            });
+      for (let d = 0; d < duration; d++) {
+        const dailyPlan: any = { day: d + 1, items: [] };
+        for (let i = 0; i < destinationsPerDay; i++) {
+          const nextDest = sortedDestinations.find((dest: any) => !visitedIds.has(dest.id));
+          if (nextDest) {
+            const cost = getPrice(nextDest.price);
+            if (currentCost + cost <= budget * 1.2) {
+              visitedIds.add(nextDest.id);
+              currentCost += cost;
+              dailyPlan.items.push({
+                time: i === 0 ? '09:00' : i === 1 ? '13:00' : '16:00',
+                destinationName: nextDest.name,
+                activity: `Mengunjungi ${nextDest.name}`,
+                cost: cost
+              });
+            }
           }
         }
+        if (dailyPlan.items.length > 0) itinerary.push(dailyPlan);
       }
 
-      if (dailyPlan.items.length > 0) {
-        itinerary.push(dailyPlan);
-      }
+      resultData = {
+        itinerary,
+        totalCost: currentCost,
+        note: 'Rencana perjalanan ini dibuat secara otomatis (AI sedang dalam pemeliharaan).'
+      };
     }
 
+    // Map back to full destination objects for the frontend
+    const finalItinerary = resultData.itinerary.map((dayPlan: any) => ({
+      ...dayPlan,
+      items: dayPlan.items.map((item: any) => {
+        const fullDest = allDestinations.find(d => d.name === item.destinationName);
+        return {
+          ...item,
+          destination: fullDest || { name: item.destinationName, image: '', location: '' }
+        };
+      })
+    }));
+
     res.json({
-      itinerary,
-      totalCost: currentCost,
+      itinerary: finalItinerary,
+      totalCost: resultData.totalCost,
       estimatedBudget: budget,
-      note: 'Itinerary generated based on popularity and interests.'
+      note: resultData.note || 'Itinerary generated for a personalized experience.'
     });
 
-  } catch (error) {
-    console.error('Trip Planner Error:', error);
-    res.status(500).json({ error: 'Gagal membuat itinerary.' });
+  } catch (error: any) {
+    console.error('Final Trip Planner Error:', error);
+    res.status(500).json({ error: 'Terjadi kesalahan sistem. Silakan coba lagi.' });
   }
 });
 

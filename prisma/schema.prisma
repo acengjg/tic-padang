@@ -99,7 +99,6 @@ model PlanItem {
   plan     Plan   @relation(fields: [planId], references: [id])
 }
 
-
 model User {
   id                String                   @id @default(cuid())
   name              String
@@ -119,6 +118,7 @@ model User {
   comments          Comment[]
   conversations     ConversationMember[]
   culinaryReviews   CulinaryReview[]
+  culinarySpots     CulinarySpot[]
   footprints        Footprint[]
   guide             Guide?
   earnings          GuideEarning[]
@@ -129,14 +129,12 @@ model User {
   reviews           Review[]
   souvenirOrders    SouvenirOrder[]
   souvenirVendors   SouvenirVendor[]
-  culinarySpots     CulinarySpot[]
   stories           Story[]
   storyComments     StoryComment[]
   storyLikes        StoryLike[]
   buddyApplications TravelBuddyApplication[]
   buddyPosts        TravelBuddyPost[]
   badges            UserBadge[]
-  culinaryOrders    CulinaryOrder[]
 }
 
 model Guide {
@@ -446,13 +444,12 @@ model CulinarySpot {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   videoUrl       String?
-  status         String           @default("APPROVED") // PENDING, APPROVED, REJECTED
+  status         String           @default("APPROVED")
   userId         String?
-  user           User?            @relation(fields: [userId], references: [id])
-  reviews        CulinaryReview[]
-  footprints     Footprint[]
   menu           CulinaryMenu[]
-  orders         CulinaryOrder[]
+  reviews        CulinaryReview[]
+  user           User?            @relation(fields: [userId], references: [id])
+  footprints     Footprint[]
 }
 
 model CulinaryMenu {
@@ -465,7 +462,6 @@ model CulinaryMenu {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   spot        CulinarySpot @relation(fields: [spotId], references: [id])
-  orderItems  CulinaryOrderItem[]
 }
 
 model CulinaryReview {
@@ -481,32 +477,6 @@ model CulinaryReview {
   createdAt      DateTime     @default(now())
   spot           CulinarySpot @relation(fields: [spotId], references: [id])
   user           User         @relation(fields: [userId], references: [id])
-}
-
-model CulinaryOrder {
-  id              String              @id @default(cuid())
-  userId          String
-  spotId          String
-  totalPrice      Int
-  status          String              @default("PENDING") // PENDING, CONFIRMED, READY, COMPLETED, CANCELLED
-  paymentStatus   String              @default("PENDING")
-  note            String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  user            User                @relation(fields: [userId], references: [id])
-  spot            CulinarySpot        @relation(fields: [spotId], references: [id])
-  items           CulinaryOrderItem[]
-}
-
-model CulinaryOrderItem {
-  id        String       @id @default(cuid())
-  orderId   String
-  menuId    String
-  quantity  Int
-  price     Int
-  note      String?
-  order     CulinaryOrder @relation(fields: [orderId], references: [id])
-  menu      CulinaryMenu  @relation(fields: [menuId], references: [id])
 }
 
 model Footprint {
@@ -562,7 +532,6 @@ model SouvenirVendor {
   description String
   image       String
   location    String
-  videoUrl    String?
   lat         Float?
   lng         Float?
   contact     String?
@@ -571,6 +540,7 @@ model SouvenirVendor {
   updatedAt   DateTime          @updatedAt
   status      String            @default("PENDING")
   userId      String
+  videoUrl    String?
   orders      SouvenirOrder[]
   products    SouvenirProduct[]
   user        User              @relation(fields: [userId], references: [id])
